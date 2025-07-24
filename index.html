@@ -128,6 +128,8 @@
             color: white;
             text-shadow: 0 0 5px red;
         }
+        ul { list-style-type: none; padding: 0; }
+        li { margin: 5px; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -163,22 +165,31 @@
     <label>Game ID (to join): <input id="gameId" type="number" placeholder="Leave blank to create"></label><br>
     <button id="betBtn" disabled>Bet NFT</button>
 
+    <button id="fetchOpenGamesBtn" disabled>Fetch Open Games</button>
+    <ul id="openGamesList"></ul>
+
     <div class="status" id="status">Status: Ready to Flip!</div>
 
     <script>
         let provider, signer, account, gameContract, gameContractWithSigner, nftContract;
-        const gameAddress = '0xAB5a07a9bea25Cd44F168133Fe4B22b321D4b7D8';
+        const gameAddress = '0xAB5a07a9bea25Cd44F168133Fe4B22b321D4b7D8'; // Update to new if redeployed
         const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
 
         const gameABI = [
             "function createGame(uint256 tokenId)",
             "function joinGame(uint256 gameId, uint256 tokenId)",
-            "function setApprovalForAll(address operator, bool approved)"
+            "function getOpenGames() view returns (uint256[])",
+            "function getGame(uint256 gameId) view returns (tuple(address player1, uint256 tokenId1, address player2, uint256 tokenId2, bool active, uint256 requestId, bytes data, uint256 joinTimestamp, uint256 createTimestamp))",
+            "event GameCreated(uint256 gameId, address player1, uint256 tokenId1)",
+            "event GameJoined(uint256 gameId, address player2, uint256 tokenId2)",
+            "event RandomnessRequested(uint256 gameId, uint256 requestId)",
+            "event GameResolved(uint256 gameId, address winner, uint256 tokenId1, uint256 tokenId2)",
+            "event GameCanceled(uint256 gameId)"
         ];
 
         const nftABI = [
             "function tokensOfOwner(address owner) view returns (uint256[])",
-            "function setApprovalForAll(address operator, bool approved)"
+            "function approve(address to, uint256 tokenId)"
         ];
 
         function updateStatus(message) {
@@ -199,24 +210,15 @@
                 gameContractWithSigner = gameContract.connect(signer);
                 nftContract = new ethers.Contract(nftAddress, nftABI, signer);
                 
-                await setApproval();
                 await fetchUserTokens();
                 document.getElementById('betBtn').disabled = false;
+                document.getElementById('fetchOpenGamesBtn').disabled = false;
                 updateStatus('Ready to Flip!');
+                setupEventListeners();
             } catch (error) {
                 updateStatus(`Error: ${error.message}`);
             }
         });
-
-        async function setApproval() {
-            try {
-                const tx = await nftContract.setApprovalForAll(gameAddress, true);
-                await tx.wait();
-                updateStatus('NFT approval set.');
-            } catch (error) {
-                updateStatus(`Approval error: ${error.message}`);
-            }
-        }
 
         async function fetchUserTokens() {
             if (!nftContract || !account) return;
@@ -239,20 +241,71 @@
             const gameId = document.getElementById('gameId').value;
             if (!tokenId) return updateStatus('Select a token to bet.');
             try {
-                let tx;
+                // Approve the token for the game contract
+                updateStatus('Approving NFT for transfer...');
+                const approveTx = await nftContract.approve(gameAddress, tokenId);
+                await approveTx.wait();
+                updateStatus('Approval confirmed.');
+
+                let tx, message;
                 if (gameId === '') {
                     tx = await gameContractWithSigner.createGame(tokenId);
-                    updateStatus(`Created game with token ${tokenId}. TX: ${tx.hash}`);
+                    message = `Created game with token ${tokenId}. TX: ${tx.hash}`;
+                    // Wait for tx to mine, then get gameId from event or assume length-1
+                    const receipt = await tx.wait();
+                    const gameCreatedEvent = receipt.events.find(e => e.event === 'GameCreated');
+                    const newGameId = gameCreatedEvent ? gameCreatedEvent.args.gameId.toString() : 'unknown';
+                    message += ` Game ID: ${newGameId} (use this to join)`;
                 } else {
                     tx = await gameContractWithSigner.joinGame(gameId, tokenId);
-                    updateStatus(`Joined game ${gameId} with token ${tokenId}. TX: ${tx.hash}`);
+                    message = `Joined game ${gameId} with token ${tokenId}. TX: ${tx.hash}`;
                 }
                 await tx.wait();
-                updateStatus('Transaction confirmed! Waiting for flip result...');
+                updateStatus(`${message} - Transaction confirmed! Waiting for flip result...`);
             } catch (error) {
                 updateStatus(`Error betting: ${error.message}`);
             }
         });
+
+        document.getElementById('fetchOpenGamesBtn').addEventListener('click', async () => {
+            if (!gameContract) return updateStatus('Connect wallet first.');
+            const openGamesList = document.getElementById('openGamesList');
+            openGamesList.innerHTML = '<li>Loading...</li>';
+            try {
+                const openIds = await gameContract.getOpenGames();
+                if (openIds.length === 0) {
+                    openGamesList.innerHTML = '<li>No open games found.</li>';
+                    return;
+                }
+                let listHTML = '';
+                for (let id of openIds) {
+                    const game = await gameContract.getGame(id);
+                    listHTML += `<li>Game ID: ${id} | Player1: ${game.player1.slice(0,6)}...${game.player1.slice(-4)} | Token: ${game.tokenId1} | Created: ${new Date(game.createTimestamp * 1000).toLocaleString()}</li>`;
+                }
+                openGamesList.innerHTML = listHTML;
+            } catch (error) {
+                updateStatus(`Error fetching games: ${error.message}`);
+                openGamesList.innerHTML = '<li>Error loading games</li>';
+            }
+        });
+
+        function setupEventListeners() {
+            gameContract.on('GameCreated', (gameId, player1, tokenId1) => {
+                updateStatus(`New game created! ID: ${gameId} by ${player1.slice(0,6)}... with token ${tokenId1}`);
+            });
+            gameContract.on('GameJoined', (gameId, player2, tokenId2) => {
+                updateStatus(`Game ${gameId} joined by ${player2.slice(0,6)}... with token ${tokenId2}. Requesting flip...`);
+            });
+            gameContract.on('RandomnessRequested', (gameId, requestId) => {
+                updateStatus(`Flip requested for game ${gameId} (Request ID: ${requestId}). Waiting for Gelato...`);
+            });
+            gameContract.on('GameResolved', (gameId, winner, tokenId1, tokenId2) => {
+                updateStatus(`Game ${gameId} resolved! Winner: ${winner.slice(0,6)}... gets tokens ${tokenId1} & ${tokenId2}`);
+            });
+            gameContract.on('GameCanceled', (gameId) => {
+                updateStatus(`Game ${gameId} canceled. NFTs returned.`);
+            });
+        }
     </script>
 </body>
 </html>
