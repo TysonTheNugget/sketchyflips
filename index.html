@@ -22,15 +22,13 @@
         .coin-container {
             perspective: 1000px;
             display: none; /* Hidden by default */
-            justify-content: center;
-            align-items: center;
         }
         .coin {
             width: 150px;
             height: 150px;
             position: relative;
             transform-style: preserve-3d;
-            animation: flip-coin 2s ease-in-out;
+            animation: flip-coin 2s ease-in-out infinite;
         }
         .coin-front, .coin-back {
             position: absolute;
@@ -55,8 +53,7 @@
         }
         @keyframes flip-coin {
             0% { transform: rotateY(0deg); }
-            50% { transform: rotateY(1980deg); } /* Multiple flips for realism */
-            100% { transform: rotateY(3600deg); } /* Ends on a full rotation */
+            100% { transform: rotateY(360deg); }
         }
         @media (max-width: 640px) {
             .coin {
@@ -71,57 +68,33 @@
                 text-shadow: 0 0 3px #ff0000, 0 0 6px #ff4500, 0 0 9px #ffff00;
             }
         }
-        /* Enhanced styles for professional look */
-        .game-list-item {
-            transition: all 0.3s ease;
-        }
-        .game-list-item:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 10px #ff4500;
-        }
-        .status-pulse {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center text-white">
+<body class="min-h-screen flex items-center justify-center">
     <div class="fixed inset-0 bg-[url('https://i.imgur.com/4z0vF0l.jpg')] bg-cover bg-center opacity-10"></div>
-    <div class="relative w-full max-w-lg mx-4 p-6 bg-gray-900 bg-opacity-95 rounded-xl shadow-2xl shadow-red-600/50 border border-red-600/50">
-        <h1 class="text-4xl text-yellow-400 neon-text text-center mb-6">Sketchy Flips Casino!</h1>
-        
-        <!-- Coin Animation -->
-        <div id="coinContainer" class="coin-container flex mx-auto mb-6">
-            <div class="coin mx-auto">
+    <div class="relative w-full max-w-md mx-4 p-6 bg-gray-900 bg-opacity-90 rounded-lg shadow-lg shadow-red-500/50">
+        <h1 class="text-3xl text-yellow-400 neon-text text-center mb-4">Sketchy Flips Casino!</h1>
+        <div id="coinContainer" class="coin-container mx-auto mb-4">
+            <div class="coin">
                 <div class="coin-front">Heads</div>
                 <div class="coin-back">Tails</div>
             </div>
         </div>
-        
-        <!-- Connect Wallet -->
-        <button id="connectWallet" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-bold py-3 px-6 rounded-lg border-2 border-red-700 shadow-lg shadow-yellow-500/60 hover:from-yellow-600 hover:to-orange-700 transition-all duration-300 mb-4">Connect Wallet</button>
-        <p id="accountInfo" class="text-center text-lg mb-4 opacity-80">Account: Not connected</p>
+        <button id="connectWallet" class="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold py-2 px-4 rounded border-2 border-red-600 shadow-md shadow-yellow-500/50 hover:from-yellow-500 hover:to-orange-600 transition mb-4">Connect Wallet</button>
+        <p id="accountInfo" class="text-center text-white text-lg mb-4">Account: Not connected</p>
 
-        <!-- NFT Select -->
-        <label class="block text-yellow-400 text-lg mb-2">Select NFT to Bet:</label>
-        <select id="tokenSelect" class="w-full bg-gray-800 text-white p-3 rounded-lg mb-4 border border-gray-700 focus:outline-none focus:border-yellow-500 transition">
+        <label class="block text-yellow-400 mb-2">Select NFT to Bet:</label>
+        <select id="tokenSelect" class="w-full bg-gray-800 text-white p-2 rounded mb-4">
             <option value="">Connect wallet first</option>
         </select>
 
-        <!-- Create Game Button -->
-        <button id="betBtn" disabled class="w-full bg-gradient-to-r from-green-600 to-green-800 text-white font-bold py-3 px-6 rounded-lg border-2 border-red-700 shadow-lg shadow-green-500/60 hover:from-green-700 hover:to-green-900 transition-all duration-300 mb-6">Create Game (Bet NFT)</button>
+        <button id="betBtn" disabled class="w-full bg-gradient-to-r from-green-500 to-green-700 text-white font-bold py-2 px-4 rounded border-2 border-red-600 shadow-md shadow-green-500/50 hover:from-green-600 hover:to-green-800 transition mb-4">Create Game (Bet NFT)</button>
+        <p class="text-white text-center mb-4">To join, fetch open games and click Join.</p>
 
-        <!-- Open Games Lobby -->
-        <h2 class="text-2xl text-yellow-400 neon-text text-center mb-4">Live Game Lobby</h2>
-        <ul id="openGamesList" class="space-y-4 mb-6 max-h-64 overflow-y-auto bg-gray-800 p-4 rounded-lg border border-gray-700"></ul>
-        <p class="text-center text-sm opacity-80 mb-4">Open games update live. Join any to flip!</p>
+        <button id="fetchOpenGamesBtn" disabled class="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold py-2 px-4 rounded border-2 border-red-600 shadow-md shadow-blue-500/50 hover:from-blue-600 hover:to-blue-800 transition mb-4">Fetch Open Games</button>
+        <ul id="openGamesList" class="mb-4"></ul>
 
-        <!-- Status -->
-        <div id="status" class="text-center text-lg neon-text status-pulse">Status: Ready to Flip!</div>
+        <div id="status" class="text-center text-white text-lg neon-text">Status: Ready to Flip!</div>
     </div>
 
     <script>
@@ -146,55 +119,8 @@
             "function approve(address to, uint256 tokenId)"
         ];
 
-        let refreshInterval;
-
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
-        }
-
-        async function fetchUserTokens() {
-            if (!nftContract || !account) return;
-            const tokenSelect = document.getElementById('tokenSelect');
-            tokenSelect.innerHTML = '<option value="">Loading NFTs...</option>';
-            try {
-                const tokens = await nftContract.tokensOfOwner(account);
-                tokenSelect.innerHTML = tokens.length > 0
-                    ? tokens.map(id => `<option value="${id.toString()}">NFT #${id.toString()}</option>`).join('')
-                    : '<option value="">No NFTs owned</option>';
-            } catch (error) {
-                updateStatus(`Tokens fetch error: ${error.message}`);
-                tokenSelect.innerHTML = '<option value="">Error loading NFTs</option>';
-            }
-        }
-
-        async function fetchOpenGames() {
-            if (!gameContract) return;
-            const openGamesList = document.getElementById('openGamesList');
-            openGamesList.innerHTML = '<li class="text-center opacity-80">Loading live games...</li>';
-            try {
-                const openIds = await gameContract.getOpenGames();
-                if (openIds.length === 0) {
-                    openGamesList.innerHTML = '<li class="text-center opacity-80">No open games. Create one!</li>';
-                    return;
-                }
-                let listHTML = '';
-                for (let id of openIds) {
-                    const game = await gameContract.getGame(id);
-                    const createdAt = new Date(game.createTimestamp * 1000).toLocaleTimeString();
-                    listHTML += `
-                        <li class="game-list-item bg-gray-700 p-3 rounded-lg flex justify-between items-center border border-gray-600 hover:border-yellow-500 transition-all duration-300">
-                            <div>
-                                <span class="font-bold">Game #${id}</span> | Player: ${game.player1.slice(0,6)}...${game.player1.slice(-4)}<br>
-                                <span class="text-sm opacity-80">Bet: NFT #${game.tokenId1} | Created: ${createdAt}</span>
-                            </div>
-                            <button class="bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold py-2 px-4 rounded-lg border border-red-700 hover:from-blue-700 hover:to-blue-900 transition-all duration-300" onclick="joinGameFromList(${id})">Join</button>
-                        </li>`;
-                }
-                openGamesList.innerHTML = listHTML;
-            } catch (error) {
-                updateStatus(`Error fetching games: ${error.message}`);
-                openGamesList.innerHTML = '<li class="text-center text-red-500">Error loading games</li>';
-            }
         }
 
         document.getElementById('connectWallet').addEventListener('click', async () => {
@@ -205,7 +131,7 @@
                 signer = provider.getSigner();
                 account = await signer.getAddress();
                 document.getElementById('accountInfo').textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
-                updateStatus('Wallet connected. Loading contracts...');
+                updateStatus('Wallet connected. Initializing contracts...');
                 
                 gameContract = new ethers.Contract(gameAddress, gameABI, provider);
                 gameContractWithSigner = gameContract.connect(signer);
@@ -213,94 +139,116 @@
                 
                 await fetchUserTokens();
                 document.getElementById('betBtn').disabled = false;
-                updateStatus('Connected! Fetching live games...');
-                await fetchOpenGames();
+                document.getElementById('fetchOpenGamesBtn').disabled = false;
+                updateStatus('Ready to Flip!');
                 setupEventListeners();
-                
-                // Auto-refresh open games every 10 seconds for live feel
-                refreshInterval = setInterval(fetchOpenGames, 10000);
             } catch (error) {
                 updateStatus(`Error: ${error.message}`);
             }
         });
 
+        async function fetchUserTokens() {
+            if (!nftContract || !account) return;
+            const tokenSelect = document.getElementById('tokenSelect');
+            tokenSelect.innerHTML = '<option value="">Loading...</option>';
+            try {
+                const tokens = await nftContract.tokensOfOwner(account);
+                tokenSelect.innerHTML = tokens.length > 0
+                    ? tokens.map(id => `<option value="${id.toString()}">${id.toString()}</option>`).join('')
+                    : '<option value="">No NFTs owned</option>';
+            } catch (error) {
+                updateStatus(`Tokens fetch error: ${error.message}`);
+                tokenSelect.innerHTML = '<option value="">Error loading tokens</option>';
+            }
+        }
+
         document.getElementById('betBtn').addEventListener('click', async () => {
             if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
             const tokenId = document.getElementById('tokenSelect').value;
-            if (!tokenId) return updateStatus('Select an NFT to bet.');
+            if (!tokenId) return updateStatus('Select a token to bet.');
             try {
-                updateStatus('Approving NFT...');
+                updateStatus('Approving NFT for transfer...');
                 const approveTx = await nftContract.approve(gameAddress, tokenId);
                 await approveTx.wait();
-                updateStatus('Approval done. Creating game...');
+                updateStatus('Approval confirmed.');
 
                 const tx = await gameContractWithSigner.createGame(tokenId);
-                await tx.wait();
-                updateStatus('Game created! Waiting for join...');
-                fetchOpenGames(); // Immediate refresh
-                fetchUserTokens(); // Update NFTs after bet
+                let message = `Created game with token ${tokenId}. TX: ${tx.hash}`;
+                const receipt = await tx.wait();
+                const gameCreatedEvent = receipt.events.find(e => e.event === 'GameCreated');
+                const newGameId = gameCreatedEvent ? gameCreatedEvent.args.gameId.toString() : 'unknown';
+                message += ` Game ID: ${newGameId} (use this to join)`;
+                updateStatus(`${message} - Transaction confirmed! Waiting for someone to join...`);
+                document.getElementById('fetchOpenGamesBtn').click();
             } catch (error) {
                 updateStatus(`Error creating game: ${error.message}`);
             }
         });
 
-        window.joinGameFromList = async (gameId) => {
+        async function joinGameFromList(gameId) {
             if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
             const tokenId = document.getElementById('tokenSelect').value;
-            if (!tokenId) return updateStatus('Select an NFT to bet.');
+            if (!tokenId) return updateStatus('Select a token to bet.');
             try {
-                updateStatus('Approving NFT...');
+                updateStatus('Approving NFT for transfer...');
                 const approveTx = await nftContract.approve(gameAddress, tokenId);
                 await approveTx.wait();
-                updateStatus('Approval done. Joining game...');
+                updateStatus('Approval confirmed.');
 
                 const tx = await gameContractWithSigner.joinGame(gameId, tokenId);
+                const message = `Joined game ${gameId} with token ${tokenId}. TX: ${tx.hash}`;
                 await tx.wait();
-                updateStatus('Joined! Flipping coin...');
-                document.getElementById('coinContainer').style.display = 'flex';
-                const coin = document.querySelector('.coin');
-                coin.style.animation = 'none'; // Reset animation
-                setTimeout(() => { coin.style.animation = 'flip-coin 3s ease-in-out'; }, 10); // Trigger flip
-                fetchOpenGames(); // Refresh list
-                fetchUserTokens(); // Update NFTs
+                updateStatus(`${message} - Transaction confirmed! Flipping coin...`);
+                document.getElementById('coinContainer').style.display = 'block';
             } catch (error) {
-                updateStatus(`Error joining: ${error.message}`);
+                updateStatus(`Error joining game: ${error.message}`);
             }
-        };
+        }
+
+        document.getElementById('fetchOpenGamesBtn').addEventListener('click', async () => {
+            if (!gameContract) return updateStatus('Connect wallet first.');
+            const openGamesList = document.getElementById('openGamesList');
+            openGamesList.innerHTML = '<li class="text-white">Loading...</li>';
+            try {
+                const openIds = await gameContract.getOpenGames();
+                if (openIds.length === 0) {
+                    openGamesList.innerHTML = '<li class="text-white">No open games found.</li>';
+                    return;
+                }
+                let listHTML = '';
+                for (let id of openIds) {
+                    const game = await gameContract.getGame(id);
+                    listHTML += `<li class="text-white">Game ID: ${id} | Player1: ${game.player1.slice(0,6)}...${game.player1.slice(-4)} | Token: ${game.tokenId1} | Created: ${new Date(game.createTimestamp * 1000).toLocaleString()} <button class="bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold py-1 px-2 rounded border-2 border-red-600 text-sm" onclick="joinGameFromList(${id})">Join</button></li>`;
+                }
+                openGamesList.innerHTML = listHTML;
+            } catch (error) {
+                updateStatus(`Error fetching games: ${error.message}`);
+                openGamesList.innerHTML = '<li class="text-white">Error loading games</li>';
+            }
+        });
 
         function setupEventListeners() {
             gameContract.on('GameCreated', (gameId, player1, tokenId1) => {
-                updateStatus(`New game #${gameId} created by ${player1.slice(0,6)}...`);
-                fetchOpenGames();
+                updateStatus(`New game created! ID: ${gameId} by ${player1.slice(0,6)}... with token ${tokenId1}`);
+                document.getElementById('fetchOpenGamesBtn').click();
             });
             gameContract.on('GameJoined', (gameId, player2, tokenId2) => {
-                updateStatus(`Game #${gameId} joined by ${player2.slice(0,6)}... Flipping...`);
-                document.getElementById('coinContainer').style.display = 'flex';
-                const coin = document.querySelector('.coin');
-                coin.style.animation = 'none';
-                setTimeout(() => { coin.style.animation = 'flip-coin 3s ease-in-out'; }, 10);
-                fetchOpenGames();
+                updateStatus(`Game ${gameId} joined by ${player2.slice(0,6)}... with token ${tokenId2}. Flipping coin...`);
+                document.getElementById('coinContainer').style.display = 'block';
             });
             gameContract.on('RandomnessRequested', (gameId, requestId) => {
-                updateStatus(`Flip in progress for #${gameId}...`);
+                updateStatus(`Flip requested for game ${gameId} (Request ID: ${requestId}). Waiting for Gelato...`);
             });
             gameContract.on('GameResolved', (gameId, winner, tokenId1, tokenId2) => {
-                updateStatus(`Game #${gameId} won by ${winner.slice(0,6)}...!`);
+                updateStatus(`Game ${gameId} resolved! Winner: ${winner.slice(0,6)}... gets tokens ${tokenId1} & ${tokenId2}`);
                 document.getElementById('coinContainer').style.display = 'none';
-                fetchOpenGames();
-                fetchUserTokens();
+                document.getElementById('fetchOpenGamesBtn').click();
             });
             gameContract.on('GameCanceled', (gameId) => {
-                updateStatus(`Game #${gameId} canceled.`);
-                fetchOpenGames();
-                fetchUserTokens();
+                updateStatus(`Game ${gameId} canceled. NFTs returned.`);
+                document.getElementById('fetchOpenGamesBtn').click();
             });
         }
-
-        // Stop interval on disconnect or page unload
-        window.addEventListener('beforeunload', () => {
-            if (refreshInterval) clearInterval(refreshInterval);
-        });
     </script>
 </body>
 </html>
