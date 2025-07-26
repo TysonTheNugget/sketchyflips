@@ -10,6 +10,7 @@
         html, body {
             height: 100%;
             margin: 0;
+            overflow: hidden;
         }
         body {
             background-image: url('/background.jpg');
@@ -30,24 +31,25 @@
             background: linear-gradient(to right, #ffeb3b, #ff9800);
             color: black;
             font-weight: bold;
-            border-radius: 1.5rem;
-            padding: 0.5rem 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 1rem;
+            padding: 0.3rem 0.8rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-size: 0.8rem;
         }
         .neon-button:hover {
             transform: scale(1.05);
-            box-shadow: 0 6px 8px rgba(255, 152, 0, 0.5), 0 0 20px rgba(255, 235, 59, 0.3);
+            box-shadow: 0 4px 6px rgba(255, 152, 0, 0.5), 0 0 15px rgba(255, 235, 59, 0.3);
         }
         .game-card {
             background: white;
-            border-radius: 1rem;
-            border: 2px solid #ff9800;
-            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            border-radius: 0.75rem;
+            border: 1px solid #ff9800;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
         }
         .game-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
         }
         .modal {
             display: none;
@@ -59,22 +61,22 @@
             height: 100%;
             overflow: auto;
             background-color: rgba(0,0,0,0.4);
-            padding-top: 60px;
+            padding-top: 40px;
         }
         .modal-content {
             background-color: #fefefe;
             margin: 5% auto;
-            padding: 15px;
+            padding: 10px;
             width: 90%;
-            max-width: 500px;
-            border-radius: 1rem;
-            border: 2px solid #ff9800;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            max-width: 400px;
+            border-radius: 0.75rem;
+            border: 1px solid #ff9800;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
         }
         .close {
             color: #aaa;
             float: right;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
         }
         .close:hover,
@@ -85,13 +87,13 @@
         }
         .nft-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 0.75rem;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.5rem;
         }
         .nft-item {
             cursor: pointer;
             text-align: center;
-            transition: transform 0.3s ease;
+            transition: transform 0.2s ease;
         }
         .nft-item:hover {
             transform: scale(1.05);
@@ -99,13 +101,13 @@
         .nft-item img {
             width: 100%;
             height: auto;
-            border-radius: 0.75rem;
-            border: 2px solid #ff9800;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 0.5rem;
+            border: 1px solid #ff9800;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         #videoOverlay {
             opacity: 0;
-            transition: opacity 1s ease-in-out;
+            transition: opacity 0.8s ease-in-out;
         }
         #videoOverlay.fade-in {
             opacity: 1;
@@ -118,13 +120,14 @@
             color: white;
             font-weight: bold;
             border-radius: 50%;
-            width: 1.25rem;
-            height: 1.25rem;
+            width: 1rem;
+            height: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+            font-size: 0.7rem;
         }
         .info-button:hover {
             transform: scale(1.1);
@@ -137,56 +140,84 @@
             50% { opacity: 0.7; }
             100% { opacity: 1; }
         }
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #loadingScreen.show {
+            opacity: 1;
+        }
+        #loadingScreen.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #loadingText {
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff9800;
+            animation: fadeText 1.5s infinite;
+        }
+        @keyframes fadeText {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="text-black">
     <!-- Header -->
-    <header class="w-full text-center py-4 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-md">
-        <h1 class="text-2xl md:text-3xl font-extrabold text-white">🎮 Sketchy Flips Arcade 🎲</h1>
-        <p class="text-sm md:text-base text-white">Fun, friends, and flipping NFTs!</p>
+    <header class="w-full text-center py-2 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm">
+        <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Flips 🎲</h1>
+        <p class="text-xs md:text-sm text-white">Fun, friends, NFTs!</p>
     </header>
 
     <!-- Main Menu -->
-    <div id="mainMenu" class="w-full max-w-3xl p-4 flex flex-col items-center justify-center flex-grow">
-        <div class="flex flex-col sm:flex-row justify-center gap-4">
+    <div id="mainMenu" class="w-full max-w-2xl p-2 flex flex-col items-center justify-center">
+        <div class="flex flex-col sm:flex-row justify-center gap-2">
             <div class="relative">
-                <button id="betButton" class="neon-button text-lg">Bet-A-Sketchy</button>
-                <button id="infoButton" class="info-button absolute -top-2 -right-2">i</button>
+                <button id="betButton" class="neon-button">Bet-A-Sketchy</button>
+                <button id="infoButton" class="info-button absolute -top-1 -right-1">i</button>
             </div>
-            <button class="neon-button text-lg opacity-50 cursor-not-allowed">Stake-A-Milio (Coming Soon)</button>
+            <button class="neon-button opacity-50 cursor-not-allowed">Stake-A-Milio (Soon)</button>
         </div>
     </div>
 
     <!-- Game Interface -->
-    <div id="gameInterface" class="hidden w-full max-w-5xl p-4 flex flex-col md:flex-row gap-4 flex-grow">
+    <div id="gameInterface" class="hidden w-full max-w-4xl p-2 flex flex-col md:flex-row gap-2 h-[calc(100vh-80px)]">
         <!-- Left: Controls -->
-        <div class="w-full md:w-1/2 flex flex-col gap-3 h-[calc(100vh-120px)] overflow-y-auto">
-            <button id="connectWallet" class="neon-button text-sm">🔌 Connect Wallet</button>
-            <p id="accountInfo" class="game-card p-2 text-center text-xs">Account: Not connected</p>
-            <div class="game-card p-3">
-                <label class="block font-bold text-sm mb-1">Selected NFT:</label>
-                <div id="selectedNFT" class="w-full p-2 rounded-lg border-2 border-orange-500 bg-white text-center text-sm">None selected</div>
-                <button id="selectNFTBtn" disabled class="neon-button w-full mt-2 text-sm">🎨 Select NFT</button>
+        <div class="w-full md:w-1/2 flex flex-col gap-2">
+            <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
+            <p id="accountInfo" class="game-card p-1 text-center text-xs">Account: Not connected</p>
+            <div class="game-card p-2">
+                <label class="block font-bold text-xs mb-1">Selected NFT:</label>
+                <div id="selectedNFT" class="w-full p-1 rounded border border-orange-500 bg-white text-center text-xs">None selected</div>
+                <button id="selectNFTBtn" disabled class="neon-button w-full mt-1">🎨 Select NFT</button>
             </div>
-            <button id="createGameBtn" disabled class="neon-button w-full text-sm">🎰 Create Flip Game</button>
-            <div class="game-card p-3 flex-grow">
-                <h2 class="text-lg text-center mb-2 font-bold">🎯 Open Games</h2>
-                <ul id="openGamesList" class="space-y-3 max-h-40 overflow-y-auto"></ul>
+            <button id="createGameBtn" disabled class="neon-button w-full">🎰 Create Game</button>
+            <div class="game-card p-2 flex-grow max-h-32">
+                <h2 class="text-sm text-center mb-1 font-bold">🎯 Open Games</h2>
+                <ul id="openGamesList" class="space-y-2 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-3 flex-grow">
-                <h2 class="text-lg text-center mb-2 font-bold">⏳ My Ongoing Games</h2>
-                <ul id="ongoingGamesList" class="space-y-3 max-h-40 overflow-y-auto"></ul>
+            <div class="game-card p-2 flex-grow max-h-32">
+                <h2 class="text-sm text-center mb-1 font-bold">⏳ Ongoing Games</h2>
+                <ul id="ongoingGamesList" class="space-y-2 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-3 flex-grow">
-                <h2 class="text-lg text-center mb-2 font-bold">🕰 Timed Out Pending Games</h2>
-                <ul id="timedOutGamesList" class="space-y-3 max-h-40 overflow-y-auto"></ul>
+            <div class="game-card p-2 flex-grow max-h-32">
+                <h2 class="text-sm text-center mb-1 font-bold">🕰 Timed Out Games</h2>
+                <ul id="timedOutGamesList" class="space-y-2 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-3 text-center text-sm font-bold status-pulse">Status: <span id="status">Waiting for connection...</span></div>
-        </div>
-
-        <!-- Right: Character Image/Video Placeholder -->
-        <div class="w-full md:w-1/2 flex items-center justify-center">
-            <img id="characterImage" src="/static.jpg" alt="Standing Character" class="max-w-full max-h-80 rounded-xl shadow-lg border-2 border-orange-500">
+            <div class="game-card p-2 text-center text-xs font-bold status-pulse">Status: <span id="status">Waiting...</span></div>
         </div>
     </div>
 
@@ -194,9 +225,9 @@
     <div id="infoModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2 class="text-xl text-center mb-3 font-bold">About Bet-A-Sketchy</h2>
-            <p class="text-center text-sm">50% chance PVP to win a Sketchy by betting one, verified by Gelato. 
-                <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">View on ABScan</a> | 
+            <h2 class="text-lg text-center mb-2 font-bold">About Bet-A-Sketchy</h2>
+            <p class="text-center text-xs">50% chance PVP to win a Sketchy by betting one, verified by Gelato. 
+                <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">ABScan</a> | 
                 <a href="/moreinfo.html" target="_blank" class="text-blue-500 hover:underline">More Info</a>
             </p>
         </div>
@@ -206,7 +237,7 @@
     <div id="nftModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2 class="text-xl text-center mb-3 font-bold">Select Your Sketchy NFT</h2>
+            <h2 class="text-lg text-center mb-2 font-bold">Select NFT</h2>
             <div id="nftGrid" class="nft-grid"></div>
         </div>
     </div>
@@ -214,9 +245,14 @@
     <!-- Video Overlay -->
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
         <div class="relative">
-            <video id="resultVideo" class="max-w-full max-h-80 rounded-xl border-2 border-orange-500" autoplay></video>
-            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold" style="text-shadow: 2px 2px 4px black;"></div>
+            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" autoplay></video>
+            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
         </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="hide">
+        <div id="loadingText">Loading SketchyMilios...</div>
     </div>
 
     <script>
@@ -249,9 +285,10 @@
         let selectedTokenId = null;
         let userTokens = [];
 
-        // Modals
+        // Modals and Loading Screen
         const infoModal = document.getElementById('infoModal');
         const nftModal = document.getElementById('nftModal');
+        const loadingScreen = document.getElementById('loadingScreen');
         const infoClose = infoModal.querySelector('.close');
         const nftClose = nftModal.querySelector('.close');
         const nftGrid = document.getElementById('nftGrid');
@@ -278,14 +315,25 @@
             nftModal.style.display = 'block';
         });
 
+        function showLoadingScreen() {
+            loadingScreen.classList.remove('hide');
+            loadingScreen.classList.add('show');
+        }
+
+        function hideLoadingScreen() {
+            loadingScreen.classList.remove('show');
+            loadingScreen.classList.add('hide');
+        }
+
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
         }
 
         async function fetchUserTokens() {
             if (!nftContract || !account) return;
+            showLoadingScreen();
             userTokens = [];
-            nftGrid.innerHTML = '<p class="text-center text-sm">Loading NFTs...</p>';
+            nftGrid.innerHTML = '<p class="text-center text-xs">Loading NFTs...</p>';
             try {
                 const tokens = await nftContract.tokensOfOwner(account);
                 for (let id of tokens) {
@@ -300,11 +348,13 @@
                 selectNFTBtn.disabled = userTokens.length === 0;
                 document.getElementById('createGameBtn').disabled = userTokens.length === 0;
                 if (userTokens.length === 0) {
-                    nftGrid.innerHTML = '<p class="text-center text-sm">No NFTs owned</p>';
+                    nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs owned</p>';
                 }
+                hideLoadingScreen();
             } catch (error) {
                 updateStatus(`Tokens fetch error: ${error.message}`);
-                nftGrid.innerHTML = '<p class="text-center text-red-500 text-sm">Error loading NFTs</p>';
+                nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
+                hideLoadingScreen();
             }
         }
 
@@ -313,7 +363,7 @@
             userTokens.forEach(token => {
                 const div = document.createElement('div');
                 div.className = 'nft-item';
-                div.innerHTML = `<img src="${token.image}" alt="NFT #${token.id}" class="w-20 h-20"><p class="text-sm">#${token.id}</p>`;
+                div.innerHTML = `<img src="${token.image}" alt="NFT #${token.id}" class="w-16 h-16"><p class="text-xs">#${token.id}</p>`;
                 div.onclick = () => selectNFT(token.id, token.image);
                 nftGrid.appendChild(div);
             });
@@ -321,7 +371,7 @@
 
         function selectNFT(tokenId, image) {
             selectedTokenId = tokenId;
-            document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-12 h-12 inline-block mr-2 rounded-lg">NFT #${tokenId}`;
+            document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded"><p class="inline text-xs">NFT #${token.id}</p>`;
             nftModal.style.display = 'none';
         }
 
@@ -331,7 +381,7 @@
             try {
                 const openIds = await gameContract.getOpenGames();
                 if (openIds.length === 0) {
-                    openGamesList.innerHTML = '<li class="text-center text-sm opacity-70">No open games. Create one!</li>';
+                    openGamesList.innerHTML = '<li class="text-center text-xs opacity-70">No open games.</li>';
                     return;
                 }
                 let listHTML = '';
@@ -344,24 +394,24 @@
                     const metadata = await response.json();
                     let image = metadata.image;
                     if (image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
-                    const createdAt = new Date(Number(game.createTimestamp) * 1000).toLocaleTimeString();
+                    const createdAt = new Date(Number(game.createTimestamp) * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                     const isMine = game.player1.toLowerCase() === account.toLowerCase();
                     const canCancel = isMine && currentTime > Number(game.createTimestamp) + 3600;
                     let actionButton = '';
                     if (canCancel) {
-                        actionButton = `<button class="neon-button py-1 px-2 text-xs" onclick="cancelUnjoinedFromList(${id})">Cancel</button>`;
+                        actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelUnjoinedFromList(${id})">Cancel</button>`;
                     } else if (isMine) {
-                        actionButton = `<span class="text-xs opacity-70">Your game - Waiting for join</span>`;
+                        actionButton = `<span class="text-xs opacity-70">Waiting...</span>`;
                     } else {
-                        actionButton = `<button class="neon-button py-1 px-2 text-xs" onclick="joinGameFromList(${id})">Join</button>`;
+                        actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="joinGameFromList(${id})">Join</button>`;
                     }
                     listHTML += `
-                        <li class="game-card p-3 flex justify-between items-center">
+                        <li class="game-card p-2 flex justify-between items-center">
                             <div class="flex items-center">
-                                <img src="${image}" alt="NFT #${game.tokenId1}" class="w-10 h-10 mr-3 rounded-lg shadow">
+                                <img src="${image}" alt="NFT #${game.tokenId1}" class="w-8 h-8 mr-2 rounded shadow">
                                 <div>
-                                    <span class="font-bold text-sm">Game #${id}</span><br>
-                                    <span class="text-xs opacity-70">Bet: NFT #${game.tokenId1} | ${createdAt}</span>
+                                    <span class="font-bold text-xs">Game #${id}</span><br>
+                                    <span class="text-xs opacity-70">NFT #${game.tokenId1} | ${createdAt}</span>
                                 </div>
                             </div>
                             ${actionButton}
@@ -369,8 +419,8 @@
                 }
                 openGamesList.innerHTML = listHTML;
             } catch (error) {
-                updateStatus(`Error fetching open games: ${error.message}`);
-                openGamesList.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading games</li>';
+                updateStatus(`Error fetching games: ${error.message}`);
+                openGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
             }
         }
 
@@ -401,17 +451,17 @@
                             let img2 = meta2.image;
                             if (img2.startsWith('ipfs://')) img2 = 'https://ipfs.io/ipfs/' + img2.slice(7);
 
-                            const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString();
+                            const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                             const canCancel = currentTime > Number(game.joinTimestamp) + 86400;
-                            let actionButton = canCancel ? `<button class="neon-button py-1 px-2 text-xs" onclick="cancelGameFromList(${i})">Cancel</button>` : '<span class="text-xs opacity-70">Waiting for resolution...</span>';
+                            let actionButton = canCancel ? `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelGameFromList(${i})">Cancel</button>` : '<span class="text-xs opacity-70">Waiting...</span>';
                             listHTML += `
-                                <li class="game-card p-3 flex flex-col">
-                                    <div class="font-bold text-sm">Game #${i}</div>
-                                    <div class="flex gap-3 mt-2">
-                                        <div><img src="${img1}" alt="NFT1" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId1}</div>
-                                        <div><img src="${img2}" alt="NFT2" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId2}</div>
+                                <li class="game-card p-2 flex flex-col">
+                                    <div class="font-bold text-xs">Game #${i}</div>
+                                    <div class="flex gap-2 mt-1">
+                                        <div><img src="${img1}" alt="NFT1" class="w-8 h-8 rounded shadow"> <span class="text-xs">NFT #${game.tokenId1}</span></div>
+                                        <div><img src="${img2}" alt="NFT2" class="w-8 h-8 rounded shadow"> <span class="text-xs">NFT #${game.tokenId2}</span></div>
                                     </div>
-                                    <div class="text-xs opacity-70 mt-2">Joined: ${joinedAt}</div>
+                                    <div class="text-xs opacity-70 mt-1">${joinedAt}</div>
                                     ${actionButton}
                                 </li>`;
                         }
@@ -419,10 +469,10 @@
                         if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
                     }
                 }
-                ongoingGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-sm opacity-70">No ongoing games.</li>';
+                ongoingGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-xs opacity-70">No ongoing games.</li>';
             } catch (error) {
-                updateStatus(`Error fetching ongoing games: ${error.message}`);
-                ongoingGamesList.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading games</li>';
+                updateStatus(`Error fetching games: ${error.message}`);
+                ongoingGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
             }
         }
 
@@ -453,38 +503,41 @@
                             let img2 = meta2.image;
                             if (img2.startsWith('ipfs://')) img2 = 'https://ipfs.io/ipfs/' + img2.slice(7);
 
-                            const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString();
+                            const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                             listHTML += `
-                                <li class="game-card p-3 flex flex-col">
-                                    <div class="font-bold text-sm">Game #${i}</div>
-                                    <div class="flex gap-3 mt-2">
-                                        <div><img src="${img1}" alt="NFT1" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId1}</div>
-                                        <div><img src="${img2}" alt="NFT2" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId2}</div>
+                                <li class="game-card p-2 flex flex-col">
+                                    <div class="font-bold text-xs">Game #${i}</div>
+                                    <div class="flex gap-2 mt-1">
+                                        <div><img src="${img1}" alt="NFT1" class="w-8 h-8 rounded shadow"> <span class="text-xs">NFT #${game.tokenId1}</span></div>
+                                        <div><img src="${img2}" alt="NFT2" class="w-8 h-8 rounded shadow"> <span class="text-xs">NFT #${game.tokenId2}</span></div>
                                     </div>
-                                    <div class="text-xs opacity-70 mt-2">Joined: ${joinedAt}</div>
-                                    <button class="neon-button py-1 px-2 text-xs mt-2" onclick="cancelGameFromList(${i})">Cancel (Timed Out)</button>
+                                    <div class="text-xs opacity-70 mt-1">${joinedAt}</div>
+                                    <button class="neon-button py-0.5 px-1 text-xs mt-1" onclick="cancelGameFromList(${i})">Cancel</button>
                                 </li>`;
                         }
                     } catch (e) {
                         if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
                     }
                 }
-                timedOutGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-sm opacity-70">No timed out games.</li>';
+                timedOutGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-xs opacity-70">No timed out games.</li>';
             } catch (error) {
-                updateStatus(`Error fetching timed out games: ${error.message}`);
-                timedOutGamesList.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading games</li>';
+                updateStatus(`Error fetching games: ${error.message}`);
+                timedOutGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
             }
         }
 
         document.getElementById('connectWallet').addEventListener('click', async () => {
-            if (!window.ethereum) return updateStatus('Install MetaMask.');
+            if (!window.ethereum) {
+                updateStatus('Install MetaMask.');
+                return;
+            }
             try {
                 provider = new ethers.providers.Web3Provider(window.ethereum);
                 await provider.send("eth_requestAccounts", []);
                 signer = provider.getSigner();
                 account = await signer.getAddress();
                 document.getElementById('accountInfo').textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
-                updateStatus('Wallet connected. Loading contracts...');
+                updateStatus('Wallet connected...');
                 
                 gameContract = new ethers.Contract(gameAddress, gameABI, provider);
                 gameContractWithSigner = gameContract.connect(signer);
@@ -501,9 +554,12 @@
                     fetchOpenGames();
                     fetchOngoingGames();
                     fetchTimedOutGames();
-                }, 10000);
+                }, 5000);
             } catch (error) {
-                updateStatus(`Error: ${error.message}`);
+                updateStatus(`Connection error: ${error.message}`);
+                if (error.code === -32603) {
+                    updateStatus('RPC Error: Disconnect MetaMask from the website (click the globe icon in MetaMask) and reconnect.');
+                }
             }
         });
 
@@ -514,7 +570,7 @@
                 updateStatus('Approving NFT...');
                 const approveTx = await nftContract.approve(gameAddress, selectedTokenId);
                 await approveTx.wait();
-                updateStatus('Approval done. Creating game...');
+                updateStatus('Creating game...');
                 const tx = await gameContractWithSigner.createGame(selectedTokenId);
                 await tx.wait();
                 updateStatus('Game created! Waiting for join...');
@@ -524,6 +580,9 @@
                 document.getElementById('selectedNFT').innerHTML = 'None selected';
             } catch (error) {
                 updateStatus(`Error creating game: ${error.message}`);
+                if (error.code === -32603) {
+                    updateStatus('RPC Error: Disconnect MetaMask from the website (click the globe icon in MetaMask) and reconnect.');
+                }
             }
         });
 
@@ -534,10 +593,10 @@
                 updateStatus('Approving NFT...');
                 const approveTx = await nftContract.approve(gameAddress, selectedTokenId);
                 await approveTx.wait();
-                updateStatus('Approval done. Joining game...');
+                updateStatus('Joining game...');
                 const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
                 await tx.wait();
-                updateStatus('Joined! Waiting for flip result...');
+                updateStatus('Joined! Waiting for result...');
                 fetchOpenGames();
                 fetchOngoingGames();
                 fetchTimedOutGames();
@@ -546,13 +605,16 @@
                 document.getElementById('selectedNFT').innerHTML = 'None selected';
             } catch (error) {
                 updateStatus(`Error joining: ${error.message}`);
+                if (error.code === -32603) {
+                    updateStatus('RPC Error: Disconnect MetaMask from the website (click the globe icon in MetaMask) and reconnect.');
+                }
             }
         };
 
         window.cancelUnjoinedFromList = async (gameId) => {
             if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
             try {
-                updateStatus('Canceling unjoined game...');
+                updateStatus('Canceling game...');
                 const tx = await gameContractWithSigner.cancelUnjoinedGame(gameId);
                 await tx.wait();
                 updateStatus('Game canceled.');
@@ -560,6 +622,9 @@
                 fetchUserTokens();
             } catch (error) {
                 updateStatus(`Error canceling: ${error.message}`);
+                if (error.code === -32603) {
+                    updateStatus('RPC Error: Disconnect MetaMask from the website (click the globe icon in MetaMask) and reconnect.');
+                }
             }
         };
 
@@ -575,6 +640,9 @@
                 fetchUserTokens();
             } catch (error) {
                 updateStatus(`Error canceling: ${error.message}`);
+                if (error.code === -32603) {
+                    updateStatus('RPC Error: Disconnect MetaMask from the website (click the globe icon in MetaMask) and reconnect.');
+                }
             }
         };
 
@@ -599,35 +667,38 @@
                 setTimeout(() => {
                     overlay.classList.add('hidden');
                     overlay.classList.remove('fade-out');
-                }, 1000);
+                }, 800);
             };
         }
 
         function setupEventListeners() {
             gameContract.on('GameCreated', (gameId, player1, tokenId1) => {
-                updateStatus(`New game #${gameId} created by ${player1.slice(0,6)}...`);
+                updateStatus(`New game #${gameId} created`);
                 fetchOpenGames();
             });
             gameContract.on('GameJoined', (gameId, player2, tokenId2) => {
-                updateStatus(`Game #${gameId} joined by ${player2.slice(0,6)}... Waiting for result...`);
+                updateStatus(`Game #${gameId} joined`);
                 fetchOpenGames();
                 fetchOngoingGames();
                 fetchTimedOutGames();
             });
             gameContract.on('RandomnessRequested', (gameId, requestId) => {
-                updateStatus(`Flip in progress for #${gameId}...`);
+                updateStatus(`Flip in progress for #${gameId}`);
             });
-            gameContract.on('GameResolved', (gameId, winner, tokenId1, tokenId2) => {
+            gameContract.on('GameResolved', async (gameId, winner, tokenId1, tokenId2, event) => {
                 const win = winner.toLowerCase() === account.toLowerCase();
-                updateStatus(`Game #${gameId} won by ${winner.slice(0,6)}...!`);
+                updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
                 playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
                 fetchOpenGames();
                 fetchOngoingGames();
                 fetchTimedOutGames();
                 fetchUserTokens();
+                // Force refresh to ensure resolution is caught
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await fetchOngoingGames();
             });
             gameContract.on('GameCanceled', (gameId) => {
-                updateStatus(`Game #${gameId} canceled.`);
+                updateStatus(`Game #${gameId} canceled`);
                 fetchOpenGames();
                 fetchOngoingGames();
                 fetchTimedOutGames();
