@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sketchy Flips - Arcade Playground</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         html, body {
@@ -251,7 +252,7 @@
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
         <div class="relative">
             <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" autoplay></video>
-            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
+            <div id="resultText" class="absolute inset-0 flex items-center justify-content-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
         </div>
     </div>
 
@@ -264,6 +265,8 @@
         let provider, signer, account, gameContract, gameContractWithSigner, nftContract;
         const gameAddress = '0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6';
         const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
+        // Replace with your Render backend URL
+        const socket = io('https://sketchyflipback.onrender.com/');
 
         const gameABI = [
             "function createGame(uint256 tokenId)",
@@ -286,10 +289,8 @@
             "function tokenURI(uint256 tokenId) view returns (string)"
         ];
 
-        let refreshInterval;
         let selectedTokenId = null;
         let userTokens = [];
-        let lastRefreshTime = 0;
 
         // Modals and Loading Screen
         const infoModal = document.getElementById('infoModal');
@@ -398,82 +399,43 @@
             nftModal.style.display = 'none';
         }
 
-        async function checkGameStatus(gameId) {
-            try {
-                const game = await gameContract.getGame(gameId);
-                if (!game.active && game.player2 !== '0x0000000000000000000000000000000000000000') {
-                    const win = game.winner && game.winner.toLowerCase() === account.toLowerCase();
-                    updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-                    playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
-                    fetchOpenGames();
-                    fetchOngoingGames();
-                    fetchTimedOutGames();
-                    fetchUserTokens();
-                }
-            } catch (error) {
-                console.error('Error checking game status:', error);
-            }
-        }
-
-        async function fetchOpenGames() {
-            if (!gameContract || !account) return;
+        function updateOpenGames(games) {
             const openGamesList = document.getElementById('openGamesList');
-            const now = Date.now();
-            if (now - lastRefreshTime < 5000) return; // Prevent flicker
-            lastRefreshTime = now;
-            try {
-                const openIds = await gameContract.getOpenGames();
-                if (openIds.length === 0) {
-                    openGamesList.innerHTML = '<li class="text-center text-xs opacity-70">No open games.</li>';
-                    return;
-                }
-                let listHTML = '';
-                const currentTime = Math.floor(Date.now() / 1000);
-                for (let id of openIds) {
-                    const game = await gameContract.getGame(id);
-                    let uri = await nftContract.tokenURI(game.tokenId1);
-                    if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
-                    const response = await fetch(uri);
-                    const metadata = await response.json();
-                    let image = metadata.image;
-                    if (image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
-                    const createdAt = new Date(Number(game.createTimestamp) * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                    const isMine = game.player1.toLowerCase() === account.toLowerCase();
-                    const canCancel = isMine && currentTime > Number(game.createTimestamp) + 3600;
-                    let actionButton = '';
-                    if (canCancel) {
-                        actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelUnjoinedFromList(${id})">Cancel</button>`;
-                    } else if (isMine) {
-                        actionButton = `<span class="text-xs opacity-70">Waiting...</span>`;
-                    } else {
-                        actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="joinGameFromList(${id})">Join</button>`;
-                    }
-                    listHTML += `
-                        <li class="game-card p-2 flex justify-between items-center">
-                            <div class="flex items-center">
-                                <img src="${image}" alt="NFT #${game.tokenId1}" class="w-8 h-8 mr-2 rounded shadow border border-orange-500">
-                                <div>
-                                    <span class="font-bold text-xs">Game #${id}</span><br>
-                                    <span class="text-xs opacity-70">NFT #${game.tokenId1} | ${createdAt}</span>
-                                </div>
-                            </div>
-                            ${actionButton}
-                        </li>`;
-                }
-                openGamesList.innerHTML = listHTML;
-            } catch (error) {
-                console.error('Error fetching open games:', error);
-                updateStatus(`Error fetching games: ${error.message}`);
-                openGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
+            if (games.length === 0) {
+                openGamesList.innerHTML = '<li class="text-center text-xs opacity-70">No open games.</li>';
+                return;
             }
+            let listHTML = '';
+            const currentTime = Math.floor(Date.now() / 1000);
+            games.forEach(game => {
+                const isMine = game.player1.toLowerCase() === account.toLowerCase();
+                const canCancel = isMine && currentTime > Number(game.createTimestamp) + 3600;
+                let actionButton = '';
+                if (canCancel) {
+                    actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelUnjoinedFromList(${game.id})">Cancel</button>`;
+                } else if (isMine) {
+                    actionButton = `<span class="text-xs opacity-70">Waiting...</span>`;
+                } else {
+                    actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="joinGameFromList(${game.id})">Join</button>`;
+                }
+                listHTML += `
+                    <li class="game-card p-2 flex justify-between items-center">
+                        <div class="flex items-center">
+                            <img src="${game.image}" alt="NFT #${game.tokenId1}" class="w-8 h-8 mr-2 rounded shadow border border-orange-500">
+                            <div>
+                                <span class="font-bold text-xs">Game #${game.id}</span><br>
+                                <span class="text-xs opacity-70">NFT #${game.tokenId1} | ${game.createdAt}</span>
+                            </div>
+                        </div>
+                        ${actionButton}
+                    </li>`;
+            });
+            openGamesList.innerHTML = listHTML;
         }
 
         async function fetchOngoingGames() {
             if (!gameContract || !account) return;
             const ongoingGamesList = document.getElementById('ongoingGamesList');
-            const now = Date.now();
-            if (now - lastRefreshTime < 5000) return;
-            lastRefreshTime = now;
             let listHTML = '';
             const currentTime = Math.floor(Date.now() / 1000);
             let foundAny = false;
@@ -511,8 +473,6 @@
                                     <div class="text-xs opacity-70 mt-1">${joinedAt}</div>
                                     ${actionButton}
                                 </li>`;
-                            // Check game status to catch missed resolutions
-                            await checkGameStatus(i);
                         }
                     } catch (e) {
                         if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
@@ -529,9 +489,6 @@
         async function fetchTimedOutGames() {
             if (!gameContract) return;
             const timedOutGamesList = document.getElementById('timedOutGamesList');
-            const now = Date.now();
-            if (now - lastRefreshTime < 5000) return;
-            lastRefreshTime = now;
             let listHTML = '';
             const currentTime = Math.floor(Date.now() / 1000);
             let foundAny = false;
@@ -599,16 +556,8 @@
                 
                 await fetchUserTokens(true); // Show loading screen only on connect
                 updateStatus('Connected! Fetching games...');
-                await fetchOpenGames();
                 await fetchOngoingGames();
                 await fetchTimedOutGames();
-                setupEventListeners();
-                
-                refreshInterval = setInterval(() => {
-                    fetchOpenGames();
-                    fetchOngoingGames();
-                    fetchTimedOutGames();
-                }, 5000);
             } catch (error) {
                 console.error('Error connecting wallet:', error);
                 updateStatus(`Connection error: ${error.message}`);
@@ -629,7 +578,6 @@
                 const tx = await gameContractWithSigner.createGame(selectedTokenId);
                 await tx.wait();
                 updateStatus('Game created! Waiting for join...');
-                await fetchOpenGames();
                 await fetchUserTokens(); // No loading screen
                 selectedTokenId = null;
                 document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
@@ -653,7 +601,6 @@
                 const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
                 await tx.wait();
                 updateStatus('Joined! Waiting for result...');
-                await fetchOpenGames();
                 await fetchOngoingGames();
                 await fetchTimedOutGames();
                 await fetchUserTokens(); // No loading screen
@@ -675,7 +622,6 @@
                 const tx = await gameContractWithSigner.cancelUnjoinedGame(gameId);
                 await tx.wait();
                 updateStatus('Game canceled.');
-                await fetchOpenGames();
                 await fetchUserTokens(); // No loading screen
             } catch (error) {
                 console.error('Error canceling unjoined game:', error);
@@ -732,47 +678,20 @@
             };
         }
 
-        function setupEventListeners() {
-            gameContract.on('GameCreated', (gameId, player1, tokenId1) => {
-                console.log('GameCreated event:', gameId.toString());
-                updateStatus(`New game #${gameId} created`);
-                fetchOpenGames();
-            });
-            gameContract.on('GameJoined', (gameId, player2, tokenId2) => {
-                console.log('GameJoined event:', gameId.toString());
-                updateStatus(`Game #${gameId} joined`);
-                fetchOpenGames();
-                fetchOngoingGames();
-                fetchTimedOutGames();
-            });
-            gameContract.on('RandomnessRequested', (gameId, requestId) => {
-                console.log('RandomnessRequested event:', gameId.toString());
-                updateStatus(`Flip in progress for #${gameId}`);
-            });
-            gameContract.on('GameResolved', async (gameId, winner, tokenId1, tokenId2, event) => {
-                console.log('GameResolved event:', gameId.toString(), 'Winner:', winner);
-                const win = winner.toLowerCase() === account.toLowerCase();
-                updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-                playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
-                fetchOpenGames();
-                fetchOngoingGames();
-                fetchTimedOutGames();
-                fetchUserTokens();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                await fetchOngoingGames();
-            });
-            gameContract.on('GameCanceled', (gameId) => {
-                console.log('GameCanceled event:', gameId.toString());
-                updateStatus(`Game #${gameId} canceled`);
-                fetchOpenGames();
-                fetchOngoingGames();
-                fetchTimedOutGames();
-                fetchUserTokens();
-            });
-        }
+        // Socket.IO event listeners
+        socket.on('openGamesUpdate', (games) => {
+            console.log('Received open games update:', games);
+            updateOpenGames(games);
+        });
 
-        window.addEventListener('beforeunload', () => {
-            if (refreshInterval) clearInterval(refreshInterval);
+        socket.on('gameResolved', async (data) => {
+            console.log('Received game resolved:', data);
+            const win = data.winner.toLowerCase() === account.toLowerCase();
+            updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
+            playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
+            await fetchOngoingGames();
+            await fetchTimedOutGames();
+            await fetchUserTokens();
         });
     </script>
 </body>
