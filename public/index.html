@@ -9,7 +9,7 @@
     <style>
         html, body {
             height: 100%;
-            overflow-y: hidden;
+            margin: 0;
         }
         body {
             background-image: url('/background.jpg');
@@ -18,13 +18,20 @@
             background-repeat: no-repeat;
             background-attachment: fixed;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+        @media (max-width: 768px) {
+            html, body {
+                overflow-y: auto;
+            }
         }
         .neon-button {
             background: linear-gradient(to right, #ffeb3b, #ff9800);
             color: black;
             font-weight: bold;
             border-radius: 1.5rem;
-            padding: 0.75rem 1.5rem;
+            padding: 0.5rem 1rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
@@ -34,10 +41,9 @@
         }
         .game-card {
             background: white;
-            background-opacity: 0.9;
-            border-radius: 1.5rem;
+            border-radius: 1rem;
             border: 2px solid #ff9800;
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
         }
         .game-card:hover {
@@ -58,17 +64,17 @@
         .modal-content {
             background-color: #fefefe;
             margin: 5% auto;
-            padding: 20px;
-            width: 80%;
-            max-width: 600px;
-            border-radius: 1.5rem;
+            padding: 15px;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 1rem;
             border: 2px solid #ff9800;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
         }
         .close {
             color: #aaa;
             float: right;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
         }
         .close:hover,
@@ -79,8 +85,8 @@
         }
         .nft-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 0.75rem;
         }
         .nft-item {
             cursor: pointer;
@@ -93,7 +99,7 @@
         .nft-item img {
             width: 100%;
             height: auto;
-            border-radius: 1rem;
+            border-radius: 0.75rem;
             border: 2px solid #ff9800;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
@@ -112,8 +118,8 @@
             color: white;
             font-weight: bold;
             border-radius: 50%;
-            width: 1.5rem;
-            height: 1.5rem;
+            width: 1.25rem;
+            height: 1.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -133,54 +139,54 @@
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-start text-black">
+<body class="text-black">
     <!-- Header -->
-    <header class="w-full text-center py-6 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-lg">
-        <h1 class="text-4xl font-extrabold text-white">🎮 Sketchy Flips Arcade 🎲</h1>
-        <p class="text-lg text-white">Fun, friends, and flipping NFTs!</p>
+    <header class="w-full text-center py-4 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-md">
+        <h1 class="text-2xl md:text-3xl font-extrabold text-white">🎮 Sketchy Flips Arcade 🎲</h1>
+        <p class="text-sm md:text-base text-white">Fun, friends, and flipping NFTs!</p>
     </header>
 
     <!-- Main Menu -->
-    <div id="mainMenu" class="w-full max-w-4xl p-6 flex flex-col items-center justify-center flex-grow">
-        <div class="flex flex-col sm:flex-row justify-center gap-6">
+    <div id="mainMenu" class="w-full max-w-3xl p-4 flex flex-col items-center justify-center flex-grow">
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
             <div class="relative">
-                <button id="betButton" class="neon-button text-xl">Bet-A-Sketchy</button>
+                <button id="betButton" class="neon-button text-lg">Bet-A-Sketchy</button>
                 <button id="infoButton" class="info-button absolute -top-2 -right-2">i</button>
             </div>
-            <button class="neon-button text-xl opacity-50 cursor-not-allowed">Stake-A-Milio (Coming Soon)</button>
+            <button class="neon-button text-lg opacity-50 cursor-not-allowed">Stake-A-Milio (Coming Soon)</button>
         </div>
     </div>
 
     <!-- Game Interface -->
-    <div id="gameInterface" class="hidden w-full max-w-6xl p-6 flex flex-col md:flex-row gap-6 flex-grow">
+    <div id="gameInterface" class="hidden w-full max-w-5xl p-4 flex flex-col md:flex-row gap-4 flex-grow">
         <!-- Left: Controls -->
-        <div class="w-full md:w-1/2 flex flex-col gap-4">
-            <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
-            <p id="accountInfo" class="game-card p-2 text-center text-sm">Account: Not connected</p>
-            <div class="game-card p-4">
-                <label class="block font-bold mb-2">Selected NFT:</label>
-                <div id="selectedNFT" class="w-full p-2 rounded-lg border-2 border-orange-500 bg-white text-center">None selected</div>
-                <button id="selectNFTBtn" disabled class="neon-button w-full mt-4">🎨 Select NFT</button>
+        <div class="w-full md:w-1/2 flex flex-col gap-3 h-[calc(100vh-120px)] overflow-y-auto">
+            <button id="connectWallet" class="neon-button text-sm">🔌 Connect Wallet</button>
+            <p id="accountInfo" class="game-card p-2 text-center text-xs">Account: Not connected</p>
+            <div class="game-card p-3">
+                <label class="block font-bold text-sm mb-1">Selected NFT:</label>
+                <div id="selectedNFT" class="w-full p-2 rounded-lg border-2 border-orange-500 bg-white text-center text-sm">None selected</div>
+                <button id="selectNFTBtn" disabled class="neon-button w-full mt-2 text-sm">🎨 Select NFT</button>
             </div>
-            <button id="createGameBtn" disabled class="neon-button w-full">🎰 Create Flip Game</button>
-            <div class="game-card p-4 flex-grow">
-                <h2 class="text-2xl text-center mb-4 font-bold">🎯 Open Games</h2>
-                <ul id="openGamesList" class="space-y-4 overflow-y-auto"></ul>
+            <button id="createGameBtn" disabled class="neon-button w-full text-sm">🎰 Create Flip Game</button>
+            <div class="game-card p-3 flex-grow">
+                <h2 class="text-lg text-center mb-2 font-bold">🎯 Open Games</h2>
+                <ul id="openGamesList" class="space-y-3 max-h-40 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-4 flex-grow">
-                <h2 class="text-2xl text-center mb-4 font-bold">⏳ My Ongoing Games</h2>
-                <ul id="ongoingGamesList" class="space-y-4 overflow-y-auto"></ul>
+            <div class="game-card p-3 flex-grow">
+                <h2 class="text-lg text-center mb-2 font-bold">⏳ My Ongoing Games</h2>
+                <ul id="ongoingGamesList" class="space-y-3 max-h-40 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-4 flex-grow">
-                <h2 class="text-2xl text-center mb-4 font-bold">🕰 Timed Out Pending Games</h2>
-                <ul id="timedOutGamesList" class="space-y-4 overflow-y-auto"></ul>
+            <div class="game-card p-3 flex-grow">
+                <h2 class="text-lg text-center mb-2 font-bold">🕰 Timed Out Pending Games</h2>
+                <ul id="timedOutGamesList" class="space-y-3 max-h-40 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-4 text-center text-lg font-bold status-pulse">Status: <span id="status">Waiting for connection...</span></div>
+            <div class="game-card p-3 text-center text-sm font-bold status-pulse">Status: <span id="status">Waiting for connection...</span></div>
         </div>
 
         <!-- Right: Character Image/Video Placeholder -->
         <div class="w-full md:w-1/2 flex items-center justify-center">
-            <img id="characterImage" src="/static.jpg" alt="Standing Character" class="max-w-full max-h-96 rounded-2xl shadow-xl border-2 border-orange-500">
+            <img id="characterImage" src="/static.jpg" alt="Standing Character" class="max-w-full max-h-80 rounded-xl shadow-lg border-2 border-orange-500">
         </div>
     </div>
 
@@ -188,8 +194,8 @@
     <div id="infoModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2 class="text-2xl text-center mb-4 font-bold">About Bet-A-Sketchy</h2>
-            <p class="text-center">50% chance PVP to win a Sketchy by betting one, verified by Gelato. 
+            <h2 class="text-xl text-center mb-3 font-bold">About Bet-A-Sketchy</h2>
+            <p class="text-center text-sm">50% chance PVP to win a Sketchy by betting one, verified by Gelato. 
                 <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">View on ABScan</a> | 
                 <a href="/moreinfo.html" target="_blank" class="text-blue-500 hover:underline">More Info</a>
             </p>
@@ -200,7 +206,7 @@
     <div id="nftModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2 class="text-2xl text-center mb-4 font-bold">Select Your Sketchy NFT</h2>
+            <h2 class="text-xl text-center mb-3 font-bold">Select Your Sketchy NFT</h2>
             <div id="nftGrid" class="nft-grid"></div>
         </div>
     </div>
@@ -208,8 +214,8 @@
     <!-- Video Overlay -->
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
         <div class="relative">
-            <video id="resultVideo" class="max-w-full max-h-full rounded-2xl border-2 border-orange-500" autoplay></video>
-            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-6xl font-bold" style="text-shadow: 2px 2px 4px black;"></div>
+            <video id="resultVideo" class="max-w-full max-h-80 rounded-xl border-2 border-orange-500" autoplay></video>
+            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold" style="text-shadow: 2px 2px 4px black;"></div>
         </div>
     </div>
 
@@ -279,7 +285,7 @@
         async function fetchUserTokens() {
             if (!nftContract || !account) return;
             userTokens = [];
-            nftGrid.innerHTML = '<p class="text-center">Loading NFTs...</p>';
+            nftGrid.innerHTML = '<p class="text-center text-sm">Loading NFTs...</p>';
             try {
                 const tokens = await nftContract.tokensOfOwner(account);
                 for (let id of tokens) {
@@ -294,11 +300,11 @@
                 selectNFTBtn.disabled = userTokens.length === 0;
                 document.getElementById('createGameBtn').disabled = userTokens.length === 0;
                 if (userTokens.length === 0) {
-                    nftGrid.innerHTML = '<p class="text-center">No NFTs owned</p>';
+                    nftGrid.innerHTML = '<p class="text-center text-sm">No NFTs owned</p>';
                 }
             } catch (error) {
                 updateStatus(`Tokens fetch error: ${error.message}`);
-                nftGrid.innerHTML = '<p class="text-center text-red-500">Error loading NFTs</p>';
+                nftGrid.innerHTML = '<p class="text-center text-red-500 text-sm">Error loading NFTs</p>';
             }
         }
 
@@ -307,7 +313,7 @@
             userTokens.forEach(token => {
                 const div = document.createElement('div');
                 div.className = 'nft-item';
-                div.innerHTML = `<img src="${token.image}" alt="NFT #${token.id}"><p>#${token.id}</p>`;
+                div.innerHTML = `<img src="${token.image}" alt="NFT #${token.id}" class="w-20 h-20"><p class="text-sm">#${token.id}</p>`;
                 div.onclick = () => selectNFT(token.id, token.image);
                 nftGrid.appendChild(div);
             });
@@ -315,7 +321,7 @@
 
         function selectNFT(tokenId, image) {
             selectedTokenId = tokenId;
-            document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-16 h-16 inline-block mr-2 rounded-lg">NFT #${tokenId}`;
+            document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-12 h-12 inline-block mr-2 rounded-lg">NFT #${tokenId}`;
             nftModal.style.display = 'none';
         }
 
@@ -325,7 +331,7 @@
             try {
                 const openIds = await gameContract.getOpenGames();
                 if (openIds.length === 0) {
-                    openGamesList.innerHTML = '<li class="text-center opacity-70">No open games. Create one!</li>';
+                    openGamesList.innerHTML = '<li class="text-center text-sm opacity-70">No open games. Create one!</li>';
                     return;
                 }
                 let listHTML = '';
@@ -343,19 +349,19 @@
                     const canCancel = isMine && currentTime > Number(game.createTimestamp) + 3600;
                     let actionButton = '';
                     if (canCancel) {
-                        actionButton = `<button class="neon-button py-1 px-2 text-sm" onclick="cancelUnjoinedFromList(${id})">Cancel</button>`;
+                        actionButton = `<button class="neon-button py-1 px-2 text-xs" onclick="cancelUnjoinedFromList(${id})">Cancel</button>`;
                     } else if (isMine) {
-                        actionButton = `<span class="text-sm opacity-70">Your game - Waiting for join</span>`;
+                        actionButton = `<span class="text-xs opacity-70">Your game - Waiting for join</span>`;
                     } else {
-                        actionButton = `<button class="neon-button py-1 px-2 text-sm" onclick="joinGameFromList(${id})">Join</button>`;
+                        actionButton = `<button class="neon-button py-1 px-2 text-xs" onclick="joinGameFromList(${id})">Join</button>`;
                     }
                     listHTML += `
-                        <li class="game-card p-4 flex justify-between items-center">
+                        <li class="game-card p-3 flex justify-between items-center">
                             <div class="flex items-center">
-                                <img src="${image}" alt="NFT #${game.tokenId1}" class="w-12 h-12 mr-4 rounded-lg shadow">
+                                <img src="${image}" alt="NFT #${game.tokenId1}" class="w-10 h-10 mr-3 rounded-lg shadow">
                                 <div>
-                                    <span class="font-bold">Game #${id}</span> | Player: ${game.player1.slice(0,6)}...${game.player1.slice(-4)}<br>
-                                    <span class="text-sm opacity-70">Bet: NFT #${game.tokenId1} | Created: ${createdAt}</span>
+                                    <span class="font-bold text-sm">Game #${id}</span><br>
+                                    <span class="text-xs opacity-70">Bet: NFT #${game.tokenId1} | ${createdAt}</span>
                                 </div>
                             </div>
                             ${actionButton}
@@ -364,7 +370,7 @@
                 openGamesList.innerHTML = listHTML;
             } catch (error) {
                 updateStatus(`Error fetching open games: ${error.message}`);
-                openGamesList.innerHTML = '<li class="text-center text-red-500">Error loading games</li>';
+                openGamesList.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading games</li>';
             }
         }
 
@@ -397,15 +403,15 @@
 
                             const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString();
                             const canCancel = currentTime > Number(game.joinTimestamp) + 86400;
-                            let actionButton = canCancel ? `<button class="neon-button py-1 px-2 text-sm" onclick="cancelGameFromList(${i})">Cancel</button>` : '<span class="text-sm opacity-70">Waiting for resolution...</span>';
+                            let actionButton = canCancel ? `<button class="neon-button py-1 px-2 text-xs" onclick="cancelGameFromList(${i})">Cancel</button>` : '<span class="text-xs opacity-70">Waiting for resolution...</span>';
                             listHTML += `
-                                <li class="game-card p-4 flex flex-col">
-                                    <div class="font-bold">Game #${i}</div>
-                                    <div class="flex gap-4 mt-2">
-                                        <div><img src="${img1}" alt="NFT1" class="w-12 h-12 rounded-lg shadow"> NFT #${game.tokenId1}</div>
-                                        <div><img src="${img2}" alt="NFT2" class="w-12 h-12 rounded-lg shadow"> NFT #${game.tokenId2}</div>
+                                <li class="game-card p-3 flex flex-col">
+                                    <div class="font-bold text-sm">Game #${i}</div>
+                                    <div class="flex gap-3 mt-2">
+                                        <div><img src="${img1}" alt="NFT1" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId1}</div>
+                                        <div><img src="${img2}" alt="NFT2" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId2}</div>
                                     </div>
-                                    <div class="text-sm opacity-70 mt-2">Player1: ${game.player1.slice(0,6)}... | Player2: ${game.player2.slice(0,6)}... | Joined: ${joinedAt}</div>
+                                    <div class="text-xs opacity-70 mt-2">Joined: ${joinedAt}</div>
                                     ${actionButton}
                                 </li>`;
                         }
@@ -413,10 +419,10 @@
                         if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
                     }
                 }
-                ongoingGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center opacity-70">No ongoing games.</li>';
+                ongoingGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-sm opacity-70">No ongoing games.</li>';
             } catch (error) {
                 updateStatus(`Error fetching ongoing games: ${error.message}`);
-                ongoingGamesList.innerHTML = '<li class="text-center text-red-500">Error loading games</li>';
+                ongoingGamesList.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading games</li>';
             }
         }
 
@@ -449,24 +455,24 @@
 
                             const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString();
                             listHTML += `
-                                <li class="game-card p-4 flex flex-col">
-                                    <div class="font-bold">Game #${i}</div>
-                                    <div class="flex gap-4 mt-2">
-                                        <div><img src="${img1}" alt="NFT1" class="w-12 h-12 rounded-lg shadow"> NFT #${game.tokenId1}</div>
-                                        <div><img src="${img2}" alt="NFT2" class="w-12 h-12 rounded-lg shadow"> NFT #${game.tokenId2}</div>
+                                <li class="game-card p-3 flex flex-col">
+                                    <div class="font-bold text-sm">Game #${i}</div>
+                                    <div class="flex gap-3 mt-2">
+                                        <div><img src="${img1}" alt="NFT1" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId1}</div>
+                                        <div><img src="${img2}" alt="NFT2" class="w-10 h-10 rounded-lg shadow"> NFT #${game.tokenId2}</div>
                                     </div>
-                                    <div class="text-sm opacity-70 mt-2">Player1: ${game.player1.slice(0,6)}... | Player2: ${game.player2.slice(0,6)}... | Joined: ${joinedAt}</div>
-                                    <button class="neon-button py-1 px-2 text-sm mt-2" onclick="cancelGameFromList(${i})">Cancel (Timed Out)</button>
+                                    <div class="text-xs opacity-70 mt-2">Joined: ${joinedAt}</div>
+                                    <button class="neon-button py-1 px-2 text-xs mt-2" onclick="cancelGameFromList(${i})">Cancel (Timed Out)</button>
                                 </li>`;
                         }
                     } catch (e) {
                         if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
                     }
                 }
-                timedOutGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center opacity-70">No timed out games.</li>';
+                timedOutGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-sm opacity-70">No timed out games.</li>';
             } catch (error) {
                 updateStatus(`Error fetching timed out games: ${error.message}`);
-                timedOutGamesList.innerHTML = '<li class="text-center text-red-500">Error loading games</li>';
+                timedOutGamesList.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading games</li>';
             }
         }
 
