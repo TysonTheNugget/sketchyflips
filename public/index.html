@@ -7,6 +7,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        html, body {
+            height: 100%;
+            overflow-y: hidden;
+        }
         body {
             background-image: url('/background.jpg');
             background-size: cover;
@@ -20,7 +24,7 @@
             color: black;
             font-weight: bold;
             border-radius: 1.5rem;
-            padding: 1rem 2rem;
+            padding: 0.75rem 1.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
@@ -32,6 +36,7 @@
             background: white;
             background-opacity: 0.9;
             border-radius: 1.5rem;
+            border: 2px solid #ff9800;
             box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
         }
@@ -54,10 +59,10 @@
             background-color: #fefefe;
             margin: 5% auto;
             padding: 20px;
-            border: none;
             width: 80%;
             max-width: 600px;
             border-radius: 1.5rem;
+            border: 2px solid #ff9800;
             box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
         .close {
@@ -89,6 +94,7 @@
             width: 100%;
             height: auto;
             border-radius: 1rem;
+            border: 2px solid #ff9800;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         #videoOverlay {
@@ -127,7 +133,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start text-black">
+<body class="flex flex-col items-center justify-start text-black">
     <!-- Header -->
     <header class="w-full text-center py-6 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-lg">
         <h1 class="text-4xl font-extrabold text-white">🎮 Sketchy Flips Arcade 🎲</h1>
@@ -146,35 +152,35 @@
     </div>
 
     <!-- Game Interface -->
-    <div id="gameInterface" class="hidden w-full max-w-6xl p-6 flex flex-col md:flex-row gap-6">
+    <div id="gameInterface" class="hidden w-full max-w-6xl p-6 flex flex-col md:flex-row gap-6 flex-grow">
         <!-- Left: Controls -->
         <div class="w-full md:w-1/2 flex flex-col gap-4">
             <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
-            <p id="accountInfo" class="text-center text-sm">Account: Not connected</p>
+            <p id="accountInfo" class="game-card p-2 text-center text-sm">Account: Not connected</p>
             <div class="game-card p-4">
                 <label class="block font-bold mb-2">Selected NFT:</label>
-                <div id="selectedNFT" class="w-full p-2 rounded-lg border border-gray-300 bg-white text-center">None selected</div>
+                <div id="selectedNFT" class="w-full p-2 rounded-lg border-2 border-orange-500 bg-white text-center">None selected</div>
                 <button id="selectNFTBtn" disabled class="neon-button w-full mt-4">🎨 Select NFT</button>
             </div>
             <button id="createGameBtn" disabled class="neon-button w-full">🎰 Create Flip Game</button>
-            <div class="game-card p-4">
+            <div class="game-card p-4 flex-grow">
                 <h2 class="text-2xl text-center mb-4 font-bold">🎯 Open Games</h2>
-                <ul id="openGamesList" class="space-y-4 max-h-64 overflow-y-auto"></ul>
+                <ul id="openGamesList" class="space-y-4 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-4">
+            <div class="game-card p-4 flex-grow">
                 <h2 class="text-2xl text-center mb-4 font-bold">⏳ My Ongoing Games</h2>
-                <ul id="ongoingGamesList" class="space-y-4 max-h-64 overflow-y-auto"></ul>
+                <ul id="ongoingGamesList" class="space-y-4 overflow-y-auto"></ul>
             </div>
-            <div class="game-card p-4">
+            <div class="game-card p-4 flex-grow">
                 <h2 class="text-2xl text-center mb-4 font-bold">🕰 Timed Out Pending Games</h2>
-                <ul id="timedOutGamesList" class="space-y-4 max-h-64 overflow-y-auto"></ul>
+                <ul id="timedOutGamesList" class="space-y-4 overflow-y-auto"></ul>
             </div>
-            <div class="text-center text-lg font-bold status-pulse">Status: <span id="status">Waiting for connection...</span></div>
+            <div class="game-card p-4 text-center text-lg font-bold status-pulse">Status: <span id="status">Waiting for connection...</span></div>
         </div>
 
         <!-- Right: Character Image/Video Placeholder -->
         <div class="w-full md:w-1/2 flex items-center justify-center">
-            <img id="characterImage" src="/static.jpg" alt="Standing Character" class="max-w-full max-h-96 rounded-2xl shadow-xl">
+            <img id="characterImage" src="/static.jpg" alt="Standing Character" class="max-w-full max-h-96 rounded-2xl shadow-xl border-2 border-orange-500">
         </div>
     </div>
 
@@ -202,7 +208,7 @@
     <!-- Video Overlay -->
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
         <div class="relative">
-            <video id="resultVideo" class="max-w-full max-h-full rounded-2xl" autoplay></video>
+            <video id="resultVideo" class="max-w-full max-h-full rounded-2xl border-2 border-orange-500" autoplay></video>
             <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-6xl font-bold" style="text-shadow: 2px 2px 4px black;"></div>
         </div>
     </div>
@@ -316,7 +322,6 @@
         async function fetchOpenGames() {
             if (!gameContract || !account) return;
             const openGamesList = document.getElementById('openGamesList');
-            openGamesList.innerHTML = '<li class="text-center opacity-70">Loading open games...</li>';
             try {
                 const openIds = await gameContract.getOpenGames();
                 if (openIds.length === 0) {
@@ -338,11 +343,11 @@
                     const canCancel = isMine && currentTime > Number(game.createTimestamp) + 3600;
                     let actionButton = '';
                     if (canCancel) {
-                        actionButton = `<button class="neon-button py-2 px-4 text-sm" onclick="cancelUnjoinedFromList(${id})">Cancel</button>`;
+                        actionButton = `<button class="neon-button py-1 px-2 text-sm" onclick="cancelUnjoinedFromList(${id})">Cancel</button>`;
                     } else if (isMine) {
                         actionButton = `<span class="text-sm opacity-70">Your game - Waiting for join</span>`;
                     } else {
-                        actionButton = `<button class="neon-button py-2 px-4 text-sm" onclick="joinGameFromList(${id})">Join</button>`;
+                        actionButton = `<button class="neon-button py-1 px-2 text-sm" onclick="joinGameFromList(${id})">Join</button>`;
                     }
                     listHTML += `
                         <li class="game-card p-4 flex justify-between items-center">
@@ -366,7 +371,6 @@
         async function fetchOngoingGames() {
             if (!gameContract || !account) return;
             const ongoingGamesList = document.getElementById('ongoingGamesList');
-            ongoingGamesList.innerHTML = '<li class="text-center opacity-70">Loading my ongoing games...</li>';
             let listHTML = '';
             const currentTime = Math.floor(Date.now() / 1000);
             let foundAny = false;
@@ -393,7 +397,7 @@
 
                             const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString();
                             const canCancel = currentTime > Number(game.joinTimestamp) + 86400;
-                            let actionButton = canCancel ? `<button class="neon-button py-2 px-4 text-sm" onclick="cancelGameFromList(${i})">Cancel</button>` : '<span class="text-sm opacity-70">Waiting for resolution...</span>';
+                            let actionButton = canCancel ? `<button class="neon-button py-1 px-2 text-sm" onclick="cancelGameFromList(${i})">Cancel</button>` : '<span class="text-sm opacity-70">Waiting for resolution...</span>';
                             listHTML += `
                                 <li class="game-card p-4 flex flex-col">
                                     <div class="font-bold">Game #${i}</div>
@@ -419,7 +423,6 @@
         async function fetchTimedOutGames() {
             if (!gameContract) return;
             const timedOutGamesList = document.getElementById('timedOutGamesList');
-            timedOutGamesList.innerHTML = '<li class="text-center opacity-70">Loading timed out games...</li>';
             let listHTML = '';
             const currentTime = Math.floor(Date.now() / 1000);
             let foundAny = false;
@@ -453,7 +456,7 @@
                                         <div><img src="${img2}" alt="NFT2" class="w-12 h-12 rounded-lg shadow"> NFT #${game.tokenId2}</div>
                                     </div>
                                     <div class="text-sm opacity-70 mt-2">Player1: ${game.player1.slice(0,6)}... | Player2: ${game.player2.slice(0,6)}... | Joined: ${joinedAt}</div>
-                                    <button class="neon-button py-2 px-4 text-sm mt-2" onclick="cancelGameFromList(${i})">Cancel (Timed Out)</button>
+                                    <button class="neon-button py-1 px-2 text-sm mt-2" onclick="cancelGameFromList(${i})">Cancel (Timed Out)</button>
                                 </li>`;
                         }
                     } catch (e) {
