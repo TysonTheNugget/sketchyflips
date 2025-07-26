@@ -338,9 +338,9 @@
             document.getElementById('status').textContent = message;
         }
 
-        async function fetchUserTokens() {
+        async function fetchUserTokens(showLoading = false) {
             if (!nftContract || !account) return;
-            showLoadingScreen();
+            if (showLoading) showLoadingScreen();
             userTokens = [];
             nftGrid.innerHTML = '<p class="text-center text-xs">Loading NFTs...</p>';
             try {
@@ -359,12 +359,12 @@
                 if (userTokens.length === 0) {
                     nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs owned</p>';
                 }
-                hideLoadingScreen();
+                if (showLoading) hideLoadingScreen();
             } catch (error) {
                 console.error('Error fetching tokens:', error);
                 updateStatus(`Tokens fetch error: ${error.message}`);
                 nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
-                hideLoadingScreen();
+                if (showLoading) hideLoadingScreen();
             }
         }
 
@@ -396,6 +396,23 @@
             selectedTokenId = tokenId;
             document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
             nftModal.style.display = 'none';
+        }
+
+        async function checkGameStatus(gameId) {
+            try {
+                const game = await gameContract.getGame(gameId);
+                if (!game.active && game.player2 !== '0x0000000000000000000000000000000000000000') {
+                    const win = game.winner && game.winner.toLowerCase() === account.toLowerCase();
+                    updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
+                    playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
+                    fetchOpenGames();
+                    fetchOngoingGames();
+                    fetchTimedOutGames();
+                    fetchUserTokens();
+                }
+            } catch (error) {
+                console.error('Error checking game status:', error);
+            }
         }
 
         async function fetchOpenGames() {
@@ -494,6 +511,8 @@
                                     <div class="text-xs opacity-70 mt-1">${joinedAt}</div>
                                     ${actionButton}
                                 </li>`;
+                            // Check game status to catch missed resolutions
+                            await checkGameStatus(i);
                         }
                     } catch (e) {
                         if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
@@ -503,7 +522,7 @@
             } catch (error) {
                 console.error('Error fetching ongoing games:', error);
                 updateStatus(`Error fetching games: ${error.message}`);
-                openGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
+                ongoingGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
             }
         }
 
@@ -557,7 +576,7 @@
             } catch (error) {
                 console.error('Error fetching timed out games:', error);
                 updateStatus(`Error fetching games: ${error.message}`);
-                openGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
+                timedOutGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
             }
         }
 
@@ -578,7 +597,7 @@
                 gameContractWithSigner = gameContract.connect(signer);
                 nftContract = new ethers.Contract(nftAddress, nftABI, signer);
                 
-                await fetchUserTokens();
+                await fetchUserTokens(true); // Show loading screen only on connect
                 updateStatus('Connected! Fetching games...');
                 await fetchOpenGames();
                 await fetchOngoingGames();
@@ -610,8 +629,8 @@
                 const tx = await gameContractWithSigner.createGame(selectedTokenId);
                 await tx.wait();
                 updateStatus('Game created! Waiting for join...');
-                fetchOpenGames();
-                fetchUserTokens();
+                await fetchOpenGames();
+                await fetchUserTokens(); // No loading screen
                 selectedTokenId = null;
                 document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
             } catch (error) {
@@ -634,10 +653,10 @@
                 const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
                 await tx.wait();
                 updateStatus('Joined! Waiting for result...');
-                fetchOpenGames();
-                fetchOngoingGames();
-                fetchTimedOutGames();
-                fetchUserTokens();
+                await fetchOpenGames();
+                await fetchOngoingGames();
+                await fetchTimedOutGames();
+                await fetchUserTokens(); // No loading screen
                 selectedTokenId = null;
                 document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
             } catch (error) {
@@ -656,8 +675,8 @@
                 const tx = await gameContractWithSigner.cancelUnjoinedGame(gameId);
                 await tx.wait();
                 updateStatus('Game canceled.');
-                fetchOpenGames();
-                fetchUserTokens();
+                await fetchOpenGames();
+                await fetchUserTokens(); // No loading screen
             } catch (error) {
                 console.error('Error canceling unjoined game:', error);
                 updateStatus(`Error canceling: ${error.message}`);
@@ -674,9 +693,9 @@
                 const tx = await gameContractWithSigner.cancelGame(gameId);
                 await tx.wait();
                 updateStatus('Game canceled.');
-                fetchOngoingGames();
-                fetchTimedOutGames();
-                fetchUserTokens();
+                await fetchOngoingGames();
+                await fetchTimedOutGames();
+                await fetchUserTokens(); // No loading screen
             } catch (error) {
                 console.error('Error canceling game:', error);
                 updateStatus(`Error canceling: ${error.message}`);
