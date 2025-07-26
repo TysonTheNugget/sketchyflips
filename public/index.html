@@ -266,7 +266,11 @@
         const gameAddress = '0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6';
         const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
         // Replace with your Render backend URL
-        const socket = io('https://sketchyflipback.onrender.com/');
+        const socket = io('https://your-render-backend.onrender.com', {
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
 
         const gameABI = [
             "function createGame(uint256 tokenId)",
@@ -401,22 +405,25 @@
 
         function updateOpenGames(games) {
             const openGamesList = document.getElementById('openGamesList');
-            if (games.length === 0) {
+            if (!games || games.length === 0) {
                 openGamesList.innerHTML = '<li class="text-center text-xs opacity-70">No open games.</li>';
                 return;
             }
             let listHTML = '';
             const currentTime = Math.floor(Date.now() / 1000);
             games.forEach(game => {
-                const isMine = game.player1.toLowerCase() === account.toLowerCase();
+                console.log('Rendering game:', game.id);
+                const isMine = account && game.player1.toLowerCase() === account.toLowerCase();
                 const canCancel = isMine && currentTime > Number(game.createTimestamp) + 3600;
                 let actionButton = '';
-                if (canCancel) {
-                    actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelUnjoinedFromList(${game.id})">Cancel</button>`;
-                } else if (isMine) {
-                    actionButton = `<span class="text-xs opacity-70">Waiting...</span>`;
-                } else {
+                if (isMine) {
+                    actionButton = canCancel 
+                        ? `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelUnjoinedFromList(${game.id})">Cancel</button>`
+                        : `<span class="text-xs opacity-70">Waiting...</span>`;
+                } else if (account) {
                     actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="joinGameFromList(${game.id})">Join</button>`;
+                } else {
+                    actionButton = `<span class="text-xs opacity-70">Connect wallet to join</span>`;
                 }
                 listHTML += `
                     <li class="game-card p-2 flex justify-between items-center">
@@ -679,6 +686,10 @@
         }
 
         // Socket.IO event listeners
+        socket.on('connect', () => {
+            console.log('Connected to backend:', socket.id);
+        });
+
         socket.on('openGamesUpdate', (games) => {
             console.log('Received open games update:', games);
             updateOpenGames(games);
@@ -686,12 +697,16 @@
 
         socket.on('gameResolved', async (data) => {
             console.log('Received game resolved:', data);
-            const win = data.winner.toLowerCase() === account.toLowerCase();
+            const win = account && data.winner.toLowerCase() === account.toLowerCase();
             updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
             playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
             await fetchOngoingGames();
             await fetchTimedOutGames();
             await fetchUserTokens();
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from backend, attempting reconnect');
         });
     </script>
 </body>
