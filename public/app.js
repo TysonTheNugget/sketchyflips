@@ -211,9 +211,18 @@ socket.on('gameResolution', async (data) => {
     playResultVideo(
         win ? '/win.mp4' : '/lose.mp4', 
         win ? 'You Win!' : 'You Lose!', 
-        data.image1, 
-        data.image2
+        data.image1 || 'https://via.placeholder.com/64', 
+        data.image2 || 'https://via.placeholder.com/64'
     );
+    // Mark game as resolved for the user
+    resolvedGames = resolvedGames.map(game => 
+        game.gameId === data.gameId ? {
+            ...game,
+            userResolved: { ...game.userResolved, [account.toLowerCase()]: true },
+            viewed: { ...game.viewed, [account.toLowerCase()]: true }
+        } : game
+    );
+    socket.emit('markGameResolved', { gameId: data.gameId, account });
     socket.emit('removeGame', { gameId: data.gameId, account });
     resolvedGames = resolvedGames.filter(game => game.gameId !== data.gameId);
     updateResultsModal(resolvedGames, account);

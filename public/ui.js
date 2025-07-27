@@ -215,15 +215,18 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
 }
 
 export function playResultVideo(src, text, image1, image2) {
-    console.log('Playing result video:', src, text);
+    console.log('Playing result video:', src, text, 'Images:', image1, image2);
     const video = document.getElementById('resultVideo');
     const overlay = document.getElementById('videoOverlay');
     const resultText = document.getElementById('resultText');
     const animationNFTs = document.getElementById('animationNFTs');
 
+    const validImage1 = image1 && image1 !== 'undefined' ? image1 : 'https://via.placeholder.com/64';
+    const validImage2 = image2 && image2 !== 'undefined' ? image2 : 'https://via.placeholder.com/64';
+
     animationNFTs.innerHTML = `
-        <img src="${image1}" alt="NFT1">
-        <img src="${image2 || 'https://via.placeholder.com/64'}" alt="NFT2">
+        <img src="${validImage1}" alt="NFT1" onerror="this.src='https://via.placeholder.com/64';">
+        <img src="${validImage2}" alt="NFT2" onerror="this.src='https://via.placeholder.com/64';">
     `;
     video.src = src;
     resultText.textContent = text;
