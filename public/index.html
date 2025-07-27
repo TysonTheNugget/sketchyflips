@@ -248,20 +248,20 @@
             font-weight: bold;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
-        #resultsModalList {
+        #resultsModalList, #historyModalList {
             max-height: 300px;
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: #ff9800 #f0f0f0;
         }
-        #resultsModalList::-webkit-scrollbar {
+        #resultsModalList::-webkit-scrollbar, #historyModalList::-webkit-scrollbar {
             width: 8px;
         }
-        #resultsModalList::-webkit-scrollbar-track {
+        #resultsModalList::-webkit-scrollbar-track, #historyModalList::-webkit-scrollbar-track {
             background: #f0f0f0;
             border-radius: 4px;
         }
-        #resultsModalList::-webkit-scrollbar-thumb {
+        #resultsModalList::-webkit-scrollbar-thumb, #historyModalList::-webkit-scrollbar-thumb {
             background: #ff9800;
             border-radius: 4px;
         }
@@ -343,6 +343,7 @@
         <div class="modal-content">
             <span class="close">×</span>
             <h2 class="text-lg text-center mb-2 font-bold">Game Results</h2>
+            <button id="historyButton" class="neon-button mb-2">History</button>
             <ul id="resultsModalList" class="space-y-2"></ul>
         </div>
     </div>
@@ -399,6 +400,7 @@
         let selectedTokenId = null;
         let userTokens = [];
         let resolvedGames = [];
+        let historyGames = [];
 
         // Modals and Loading Screen
         const infoModal = document.getElementById('infoModal');
@@ -412,6 +414,7 @@
         const selectNFTBtn = document.getElementById('selectNFTBtn');
         const resultsButton = document.getElementById('resultsButton');
         const resultsNotification = document.getElementById('resultsNotification');
+        const historyButton = document.getElementById('historyButton');
 
         infoClose.onclick = () => { infoModal.style.display = 'none'; };
         nftClose.onclick = () => { nftModal.style.display = 'none'; };
@@ -452,6 +455,11 @@
             console.log('Results button clicked, opening modal');
             updateResultsModal();
             resultsModal.style.display = 'block';
+        });
+
+        historyButton.addEventListener('click', () => {
+            console.log('History button clicked');
+            socket.emit('fetchHistory', { account });
         });
 
         function showLoadingScreen() {
@@ -628,6 +636,33 @@
             });
         }
 
+        function updateHistoryModal(games) {
+            console.log('Updating history modal with:', games);
+            const resultsModalList = document.getElementById('resultsModalList');
+            resultsModalList.innerHTML = '';
+            if (games.length === 0) {
+                resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No game history.</li>';
+                return;
+            }
+            games.forEach(game => {
+                const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() || 
+                                          (game.player2 && game.player2.toLowerCase() === account.toLowerCase()));
+                const win = isMine && game.winner && game.winner.toLowerCase() === account.toLowerCase();
+                const status = game.resolved ? (win ? 'You Won!' : 'You Lost!') : 'Pending';
+                const li = document.createElement('li');
+                li.className = 'game-card p-2 flex justify-between items-center';
+                li.innerHTML = `
+                    <div>
+                        <div class="font-bold text-xs">Game #${game.gameId}</div>
+                        <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
+                        <div class="text-xs ${game.resolved ? (win ? 'text-green-500' : 'text-red-500') : 'text-yellow-500'}">
+                            ${status} ${game.resolved && game.winner ? `(Winner: ${game.winner.slice(0, 6)}...${game.winner.slice(-4)})` : ''}
+                        </div>
+                    </div>`;
+                resultsModalList.appendChild(li);
+            });
+        }
+
         async function resolveGame(gameId) {
             console.log('Resolving game:', gameId);
             socket.emit('resolveGame', { gameId, account });
@@ -754,6 +789,7 @@
                     overlay.classList.add('hidden');
                     overlay.classList.remove('fade-out');
                     animationNFTs.innerHTML = '';
+                    updateResultsModal();
                 }, 800);
             });
 
@@ -765,6 +801,7 @@
                     overlay.classList.add('hidden');
                     overlay.classList.remove('fade-out');
                     animationNFTs.innerHTML = '';
+                    updateResultsModal();
                 }, 800);
             };
         }
@@ -809,23 +846,31 @@
             updateResultsModal();
         });
 
+        socket.on('historyGames', (games) => {
+            console.log('Received historyGames:', games);
+            historyGames = games;
+            updateHistoryModal(games);
+        });
+
         socket.on('gameResolution', async (data) => {
             console.log('Received gameResolution:', data);
             if (data.error) {
                 updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
                 return;
             }
-            const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
-            updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4', 
-                win ? 'You Win!' : 'You Lose!', 
-                data.image1, 
-                data.image2
-            );
-            socket.emit('removeGame', { gameId: data.gameId, account });
-            resolvedGames = resolvedGames.filter(game => game.gameId !== data.gameId);
-            updateResultsModal();
+            if (data.resolved) {
+                const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
+                updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
+                playResultVideo(
+                    win ? '/win.mp4' : '/lose.mp4', 
+                    win ? 'You Win!' : 'You Lose!', 
+                    data.image1, 
+                    data.image2
+                );
+                socket.emit('resolveAndMoveToHistory', { gameId: data.gameId, account });
+            } else {
+                updateStatus(`Game #${data.gameId} is still pending.`);
+            }
             await fetchUserTokens();
         });
 
