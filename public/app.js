@@ -219,9 +219,8 @@ socket.on('gameResolution', async (data) => {
         data.image1 || 'https://via.placeholder.com/64', 
         data.image2 || 'https://via.placeholder.com/64'
     );
-    socket.emit('removeGame', { gameId: data.gameId, account });
-    resolvedGames = resolvedGames.filter(game => game.gameId !== data.gameId);
-    updateResultsModal(resolvedGames, account);
+    // Fetch the latest unresolved games from backend
+    socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
 });
 
