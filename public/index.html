@@ -196,20 +196,20 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
-        #openGamesList, #ongoingGamesList, #timedOutGamesList {
+        #openGamesList {
             max-height: 200px;
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: #ff9800 #f0f0f0;
         }
-        #openGamesList::-webkit-scrollbar, #ongoingGamesList::-webkit-scrollbar, #timedOutGamesList::-webkit-scrollbar {
+        #openGamesList::-webkit-scrollbar {
             width: 8px;
         }
-        #openGamesList::-webkit-scrollbar-track, #ongoingGamesList::-webkit-scrollbar-track, #timedOutGamesList::-webkit-scrollbar-track {
+        #openGamesList::-webkit-scrollbar-track {
             background: #f0f0f0;
             border-radius: 4px;
         }
-        #openGamesList::-webkit-scrollbar-thumb, #ongoingGamesList::-webkit-scrollbar-thumb, #timedOutGamesList::-webkit-scrollbar-thumb {
+        #openGamesList::-webkit-scrollbar-thumb {
             background: #ff9800;
             border-radius: 4px;
         }
@@ -265,6 +265,18 @@
             background: #ff9800;
             border-radius: 4px;
         }
+        #animationNFTs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        #animationNFTs img {
+            width: 64px;
+            height: 64px;
+            border-radius: 0.5rem;
+            border: 1px solid #ff9800;
+        }
     </style>
 </head>
 <body class="text-black">
@@ -300,14 +312,6 @@
             <div class="game-card p-2 flex-grow">
                 <h2 class="text-sm text-center mb-1 font-bold">🎯 Open Games</h2>
                 <ul id="openGamesList" class="space-y-2 overflow-y-auto"></ul>
-            </div>
-            <div class="game-card p-2 flex-grow">
-                <h2 class="text-sm text-center mb-1 font-bold">⏳ Ongoing Games</h2>
-                <ul id="ongoingGamesList" class="space-y-2 overflow-y-auto"></ul>
-            </div>
-            <div class="game-card p-2 flex-grow">
-                <h2 class="text-sm text-center mb-1 font-bold">🕰 Timed Out Games</h2>
-                <ul id="timedOutGamesList" class="space-y-2 overflow-y-auto"></ul>
             </div>
             <div class="game-card p-2 text-center text-xs font-bold status-pulse">Status: <span id="status">Waiting...</span></div>
         </div>
@@ -346,7 +350,8 @@
     <!-- Video Overlay -->
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
         <div class="relative">
-            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" autoplay></video>
+            <div id="animationNFTs"></div>
+            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted></video>
             <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
         </div>
     </div>
@@ -377,9 +382,7 @@
             "function joinGame(uint256 gameId, uint256 tokenId)",
             "function getOpenGames() view returns (uint256[])",
             "function getGame(uint256 gameId) view returns (tuple(address player1, uint256 tokenId1, address player2, uint256 tokenId2, bool active, uint256 requestId, bytes data, uint256 joinTimestamp, uint256 createTimestamp))",
-            "function cancelGame(uint256 gameId)",
             "function cancelUnjoinedGame(uint256 gameId)",
-            "function games(uint256) view returns (tuple(address player1, uint256 tokenId1, address player2, uint256 tokenId2, bool active, uint256 requestId, bytes data, uint256 joinTimestamp, uint256 createTimestamp))",
             "event GameCreated(uint256 gameId, address player1, uint256 tokenId1)",
             "event GameJoined(uint256 gameId, address player2, uint256 tokenId2)",
             "event RandomnessRequested(uint256 gameId, uint256 requestId)",
@@ -413,18 +416,16 @@
         infoClose.onclick = () => { infoModal.style.display = 'none'; };
         nftClose.onclick = () => { nftModal.style.display = 'none'; };
         resultsClose.onclick = () => { 
-            console.log('Closing results modal, marking games as viewed');
-            resolvedGames = resolvedGames.map(game => ({ ...game, viewed: true }));
-            updateResultsModal();
+            console.log('Closing results modal');
+            socket.emit('markGamesViewed', { account, gameIds: resolvedGames.filter(g => !g.resolved).map(g => g.gameId) });
             resultsModal.style.display = 'none'; 
         };
         window.onclick = (event) => {
             if (event.target === infoModal) infoModal.style.display = 'none';
             if (event.target === nftModal) nftModal.style.display = 'none';
             if (event.target === resultsModal) {
-                console.log('Clicked outside results modal, marking games as viewed');
-                resolvedGames = resolvedGames.map(game => ({ ...game, viewed: true }));
-                updateResultsModal();
+                console.log('Clicked outside results modal');
+                socket.emit('markGamesViewed', { account, gameIds: resolvedGames.filter(g => !g.resolved).map(g => g.gameId) });
                 resultsModal.style.display = 'none';
             }
         };
@@ -592,148 +593,30 @@
             });
         }
 
-        async function fetchOngoingGames() {
-            if (!gameContract || !account) {
-                console.log('Cannot fetch ongoing games: gameContract or account missing');
-                return;
-            }
-            const ongoingGamesList = document.getElementById('ongoingGamesList');
-            let listHTML = '';
-            const currentTime = Math.floor(Date.now() / 1000);
-            let foundAny = false;
-            try {
-                for (let i = 0; i < 1000; i++) {
-                    try {
-                        const game = await gameContract.getGame(i);
-                        if (game.active && game.player2 !== '0x0000000000000000000000000000000000000000' &&
-                            (game.player1.toLowerCase() === account.toLowerCase() || game.player2.toLowerCase() === account.toLowerCase())) {
-                            foundAny = true;
-                            let uri1 = await nftContract.tokenURI(game.tokenId1);
-                            if (uri1.startsWith('ipfs://')) uri1 = 'https://ipfs.io/ipfs/' + uri1.slice(7);
-                            const resp1 = await fetch(uri1);
-                            const meta1 = await resp1.json();
-                            let img1 = meta1.image;
-                            if (img1.startsWith('ipfs://')) img1 = 'https://ipfs.io/ipfs/' + img1.slice(7);
-
-                            let uri2 = await nftContract.tokenURI(game.tokenId2);
-                            if (uri2.startsWith('ipfs://')) uri2 = 'https://ipfs.io/ipfs/' + uri2.slice(7);
-                            const resp2 = await fetch(uri2);
-                            const meta2 = await resp2.json();
-                            let img2 = meta2.image;
-                            if (img2.startsWith('ipfs://')) img2 = 'https://ipfs.io/ipfs/' + img2.slice(7);
-
-                            const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                            const timeUntilCancel = Number(game.joinTimestamp) + 86400 - currentTime;
-                            const canCancel = timeUntilCancel <= 0;
-                            let actionButton = canCancel 
-                                ? `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelGameFromList(${i})">Cancel</button>` 
-                                : `<span class="text-xs opacity-70">Cancel in ${formatTimeRemaining(timeUntilCancel)}</span>`;
-                            listHTML += `
-                                <li class="game-card p-2 flex flex-col">
-                                    <div class="font-bold text-xs">Game #${i}</div>
-                                    <div class="flex gap-2 mt-1">
-                                        <div><img src="${img1}" alt="NFT1" class="w-8 h-8 rounded shadow border border-orange-500"> <span class="text-xs">NFT #${game.tokenId1}</span></div>
-                                        <div><img src="${img2}" alt="NFT2" class="w-8 h-8 rounded shadow border border-orange-500"> <span class="text-xs">NFT #${game.tokenId2}</span></div>
-                                    </div>
-                                    <div class="text-xs opacity-70 mt-1">${joinedAt}</div>
-                                    ${actionButton}
-                                </li>`;
-                        }
-                    } catch (e) {
-                        if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
-                    }
-                }
-                ongoingGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-xs opacity-70">No ongoing games.</li>';
-            } catch (error) {
-                console.error('Error fetching ongoing games:', error);
-                updateStatus(`Error fetching games: ${error.message}`);
-                ongoingGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
-            }
-        }
-
-        async function fetchTimedOutGames() {
-            if (!gameContract) {
-                console.log('Cannot fetch timed out games: gameContract missing');
-                return;
-            }
-            const timedOutGamesList = document.getElementById('timedOutGamesList');
-            let listHTML = '';
-            const currentTime = Math.floor(Date.now() / 1000);
-            let foundAny = false;
-            try {
-                for (let i = 0; i < 1000; i++) {
-                    try {
-                        const game = await gameContract.getGame(i);
-                        const canCancel = game.active && game.player2 !== '0x0000000000000000000000000000000000000000' && currentTime > Number(game.joinTimestamp) + 86400;
-                        if (canCancel) {
-                            foundAny = true;
-                            let uri1 = await nftContract.tokenURI(game.tokenId1);
-                            if (uri1.startsWith('ipfs://')) uri1 = 'https://ipfs.io/ipfs/' + uri1.slice(7);
-                            const resp1 = await fetch(uri1);
-                            const meta1 = await resp1.json();
-                            let img1 = meta1.image;
-                            if (img1.startsWith('ipfs://')) img1 = 'https://ipfs.io/ipfs/' + img1.slice(7);
-
-                            let uri2 = await nftContract.tokenURI(game.tokenId2);
-                            if (uri2.startsWith('ipfs://')) uri2 = 'https://ipfs.io/ipfs/' + uri2.slice(7);
-                            const resp2 = await fetch(uri2);
-                            const meta2 = await resp2.json();
-                            let img2 = meta2.image;
-                            if (img2.startsWith('ipfs://')) img2 = 'https://ipfs.io/ipfs/' + img2.slice(7);
-
-                            const joinedAt = new Date(Number(game.joinTimestamp) * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                            listHTML += `
-                                <li class="game-card p-2 flex flex-col">
-                                    <div class="font-bold text-xs">Game #${i}</div>
-                                    <div class="flex gap-2 mt-1">
-                                        <div><img src="${img1}" alt="NFT1" class="w-8 h-8 rounded shadow border border-orange-500"> <span class="text-xs">NFT #${game.tokenId1}</span></div>
-                                        <div><img src="${img2}" alt="NFT2" class="w-8 h-8 rounded shadow border border-orange-500"> <span class="text-xs">NFT #${game.tokenId2}</span></div>
-                                    </div>
-                                    <div class="text-xs opacity-70 mt-1">${joinedAt}</div>
-                                    <button class="neon-button py-0.5 px-1 text-xs mt-1" onclick="cancelGameFromList(${i})">Cancel</button>
-                                </li>`;
-                        }
-                    } catch (e) {
-                        if (e.message.includes('revert') || e.message.includes('out of bounds')) break;
-                    }
-                }
-                timedOutGamesList.innerHTML = foundAny ? listHTML : '<li class="text-center text-xs opacity-70">No timed out games.</li>';
-            } catch (error) {
-                console.error('Error fetching timed out games:', error);
-                updateStatus(`Error fetching games: ${error.message}`);
-                timedOutGamesList.innerHTML = '<li class="text-center text-red-500 text-xs">Error loading</li>';
-            }
-        }
-
         function updateResultsModal() {
             console.log('Updating results modal with:', resolvedGames);
             const resultsModalList = document.getElementById('resultsModalList');
             resultsModalList.innerHTML = '';
-            if (!resolvedGames || resolvedGames.length === 0) {
-                resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No resolved games.</li>';
+            const unresolvedGames = resolvedGames.filter(game => !game.userResolved);
+            const unviewedCount = unresolvedGames.filter(game => !game.viewed).length;
+            if (unresolvedGames.length === 0) {
+                resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No unresolved games.</li>';
                 resultsButton.classList.add('hidden');
                 resultsNotification.classList.add('hidden');
                 return;
             }
-            const unviewedCount = resolvedGames.filter(game => !game.viewed).length;
             resultsButton.classList.remove('hidden');
             resultsNotification.classList.remove('hidden');
             resultsNotification.textContent = unviewedCount || '0';
-            resolvedGames.forEach(game => {
+            unresolvedGames.forEach(game => {
                 const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() || (game.player2 && game.player2.toLowerCase() === account.toLowerCase()));
-                const win = account && game.winner && game.winner.toLowerCase() === account.toLowerCase();
-                const status = game.resolved ? (win ? 'You Won!' : 'You Lost!') : 'Pending';
-                const resolveButton = !game.resolved && isMine ? `<button class="neon-button py-0.5 px-1 text-xs mt-1" onclick="resolveGame(${game.gameId})">Resolve</button>` : '';
+                const resolveButton = isMine ? `<button class="neon-button py-0.5 px-1 text-xs" onclick="resolveGame(${game.gameId})">Resolve</button>` : '';
                 const li = document.createElement('li');
-                li.className = 'game-card p-2 flex flex-col';
+                li.className = 'game-card p-2 flex justify-between items-center';
                 li.innerHTML = `
-                    <div class="font-bold text-xs">Game #${game.gameId}</div>
-                    <div class="flex gap-2 mt-1">
-                        <div><span class="text-xs">NFT #${game.tokenId1}</span></div>
-                        <div><span class="text-xs">NFT #${game.tokenId2 || 'N/A'}</span></div>
-                    </div>
-                    <div class="text-xs mt-1 ${game.resolved ? (win ? 'text-green-500' : 'text-red-500') : 'text-yellow-500'}">
-                        ${status} ${game.resolved && game.winner ? `(Winner: ${game.winner.slice(0, 6)}...${game.winner.slice(-4)})` : ''}
+                    <div>
+                        <div class="font-bold text-xs">Game #${game.gameId}</div>
+                        <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
                     </div>
                     ${resolveButton}`;
                 resultsModalList.appendChild(li);
@@ -765,8 +648,6 @@
                 
                 await fetchUserTokens(true);
                 updateStatus('Connected! Fetching games...');
-                await fetchOngoingGames();
-                await fetchTimedOutGames();
                 socket.emit('fetchResolvedGames', { account });
             } catch (error) {
                 console.error('Error connecting wallet:', error);
@@ -811,8 +692,6 @@
                 const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
                 await tx.wait();
                 updateStatus('Joined! Waiting for result...');
-                await fetchOngoingGames();
-                await fetchTimedOutGames();
                 await fetchUserTokens();
                 selectedTokenId = null;
                 document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
@@ -833,8 +712,6 @@
                 await tx.wait();
                 updateStatus('Game canceled.');
                 await fetchUserTokens();
-                await fetchOngoingGames();
-                await fetchTimedOutGames();
             } catch (error) {
                 console.error('Error canceling unjoined game:', error);
                 updateStatus(`Error canceling: ${error.message}`);
@@ -844,31 +721,18 @@
             }
         };
 
-        window.cancelGameFromList = async (gameId) => {
-            if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
-            try {
-                updateStatus('Canceling game...');
-                const tx = await gameContractWithSigner.cancelGame(gameId);
-                await tx.wait();
-                updateStatus('Game canceled.');
-                await fetchOngoingGames();
-                await fetchTimedOutGames();
-                await fetchUserTokens();
-            } catch (error) {
-                console.error('Error canceling game:', error);
-                updateStatus(`Error canceling: ${error.message}`);
-                if (error.code === -32603) {
-                    updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
-                }
-            }
-        };
-
-        function playResultVideo(src, text) {
+        function playResultVideo(src, text, image1, image2) {
             console.log('Playing result video:', src, text);
             const video = document.getElementById('resultVideo');
             const overlay = document.getElementById('videoOverlay');
             const resultText = document.getElementById('resultText');
+            const animationNFTs = document.getElementById('animationNFTs');
 
+            // Set up NFT images
+            animationNFTs.innerHTML = `
+                <img src="${image1}" alt="NFT1">
+                <img src="${image2 || 'https://via.placeholder.com/64'}" alt="NFT2">
+            `;
             video.src = src;
             resultText.textContent = text;
 
@@ -877,9 +741,17 @@
                 overlay.classList.add('fade-in');
             }, 10);
 
+            // Explicit play for mobile compatibility
             video.play().catch(error => {
                 console.error('Error playing video:', error);
                 updateStatus(`Error playing result video: ${error.message}`);
+                // Fallback: show result without animation
+                overlay.classList.remove('fade-in');
+                overlay.classList.add('fade-out');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('fade-out');
+                }, 800);
             });
 
             video.onended = () => {
@@ -889,6 +761,7 @@
                 setTimeout(() => {
                     overlay.classList.add('hidden');
                     overlay.classList.remove('fade-out');
+                    animationNFTs.innerHTML = '';
                 }, 800);
             };
         }
@@ -910,35 +783,22 @@
                 gameId: data.gameId, 
                 player1: data.player1, 
                 tokenId1: data.tokenId1, 
+                image1: data.image1,
                 player2: data.player2, 
                 tokenId2: data.tokenId2, 
+                image2: data.image2,
                 resolved: false, 
+                userResolved: false,
                 viewed: false 
             });
             updateResultsModal();
             updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
-            await fetchOngoingGames();
-            await fetchTimedOutGames();
-            await fetchUserTokens();
-        });
-
-        socket.on('gameResolved', async (data) => {
-            console.log('Received gameResolved:', data);
-            const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
-            resolvedGames = resolvedGames.map(game => 
-                game.gameId === data.gameId ? { ...game, ...data, resolved: true, viewed: false } : game
-            );
-            updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-            updateResultsModal();
-            playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
-            await fetchOngoingGames();
-            await fetchTimedOutGames();
             await fetchUserTokens();
         });
 
         socket.on('resolvedGames', (games) => {
             console.log('Received resolvedGames:', games);
-            resolvedGames = games.map(game => ({ ...game, viewed: game.viewed || false }));
+            resolvedGames = games.map(game => ({ ...game, userResolved: game.userResolved || false, viewed: game.viewed || false }));
             updateResultsModal();
         });
 
@@ -950,17 +810,28 @@
             }
             if (data.resolved) {
                 resolvedGames = resolvedGames.map(game => 
-                    game.gameId === data.gameId ? { ...game, ...data, resolved: true, viewed: false } : game
+                    game.gameId === data.gameId ? { 
+                        ...game, 
+                        winner: data.winner, 
+                        resolved: true, 
+                        userResolved: true, 
+                        viewed: false,
+                        image1: data.image1,
+                        image2: data.image2
+                    } : game
                 );
                 const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
                 updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
                 updateResultsModal();
-                playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
+                playResultVideo(
+                    win ? '/win.mp4' : '/lose.mp4', 
+                    win ? 'You Win!' : 'You Lose!', 
+                    data.image1, 
+                    data.image2
+                );
             } else {
                 updateStatus(`Game #${data.gameId} is still pending.`);
             }
-            await fetchOngoingGames();
-            await fetchTimedOutGames();
             await fetchUserTokens();
         });
 
