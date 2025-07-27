@@ -14,7 +14,20 @@ let selectedTokenId = null;
 let userTokens = [];
 let resolvedGames = [];
 
-initializeUI({ socket, getAccount: () => account, getResolvedGames: () => resolvedGames, getUserTokens: () => userTokens, setSelectedTokenId: (id) => { selectedTokenId = id; } });
+function resolveGame(gameId) {
+    console.log('Resolving game:', gameId);
+    socket.emit('resolveGame', { gameId, account });
+    updateStatus('Checking game resolution...');
+}
+
+initializeUI({ 
+    socket, 
+    getAccount: () => account, 
+    getResolvedGames: () => resolvedGames, 
+    getUserTokens: () => userTokens, 
+    setSelectedTokenId: (id) => { selectedTokenId = id; },
+    resolveGame
+});
 
 document.getElementById('connectWallet').addEventListener('click', async () => {
     if (!window.ethereum) {
@@ -53,7 +66,7 @@ document.getElementById('createGameBtn').addEventListener('click', async () => {
         const approveTx = await nftContract.approve(gameAddress, selectedTokenId);
         await approveTx.wait();
         updateStatus('Creating game...');
-        const tx = await gameContractWithSignr.createGame(selectedTokenId);
+        const tx = await gameContractWithSigner.createGame(selectedTokenId);
         await tx.wait();
         updateStatus('Game created! Waiting for join...');
         await fetchUserTokens();
@@ -145,12 +158,6 @@ async function fetchUserTokens(showLoading = false) {
         nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
         if (showLoading) hideLoadingScreen();
     }
-}
-
-async function resolveGame(gameId) {
-    console.log('Resolving game:', gameId);
-    socket.emit('resolveGame', { gameId, account });
-    updateStatus('Checking game resolution...');
 }
 
 // Socket.IO event listeners

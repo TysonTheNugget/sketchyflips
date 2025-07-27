@@ -1,4 +1,4 @@
-export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId }) {
+export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     // Modal event listeners
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
@@ -20,7 +20,7 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
     document.getElementById('resultsButton').addEventListener('click', (e) => {
         e.stopPropagation();
         console.log('Results button clicked, opening modal');
-        updateResultsModal(getResolvedGames(), getAccount());
+        updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
         document.getElementById('resultsModal').style.display = 'block';
     });
 
@@ -135,10 +135,10 @@ export function updateOpenGames(games, account) {
         let actionButton = '';
         if (isMine) {
             actionButton = canCancel 
-                ? `<button class="neon-button py-0.5 px-1 text-xs" onclick="cancelUnjoinedFromList(${game.id})">Cancel</button>`
+                ? `<button class="neon-button py-0.5 px-1 text-xs cancel-game-btn" data-game-id="${game.id}">Cancel</button>`
                 : `<span class="text-xs opacity-70">Cancel in ${formatTimeRemaining(timeUntilCancel)}</span>`;
         } else if (account) {
-            actionButton = `<button class="neon-button py-0.5 px-1 text-xs" onclick="joinGameFromList(${game.id})">Join</button>`;
+            actionButton = `<button class="neon-button py-0.5 px-1 text-xs join-game-btn" data-game-id="${game.id}">Join</button>`;
         } else {
             actionButton = `<span class="text-xs opacity-70">Connect wallet to join</span>`;
         }
@@ -155,9 +155,23 @@ export function updateOpenGames(games, account) {
             ${actionButton}`;
         openGamesList.appendChild(li);
     });
+
+    // Add event listeners for dynamically created buttons
+    document.querySelectorAll('.join-game-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const gameId = button.getAttribute('data-game-id');
+            window.joinGameFromList(gameId);
+        });
+    });
+    document.querySelectorAll('.cancel-game-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const gameId = button.getAttribute('data-game-id');
+            window.cancelUnjoinedFromList(gameId);
+        });
+    });
 }
 
-export function updateResultsModal(resolvedGames, account) {
+export function updateResultsModal(resolvedGames, account, resolveGame) {
     console.log('Updating results modal with:', resolvedGames);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
@@ -179,7 +193,7 @@ export function updateResultsModal(resolvedGames, account) {
     userGames.forEach(game => {
         const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() || 
                                   (game.player2 && game.player2.toLowerCase() === account.toLowerCase()));
-        const resolveButton = isMine ? `<button class="neon-button py-0.5 px-1 text-xs" onclick="resolveGame(${game.gameId})">Resolve</button>` : '';
+        const resolveButton = isMine ? `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}">Resolve</button>` : '';
         const li = document.createElement('li');
         li.className = 'game-card p-2 flex justify-between items-center';
         li.innerHTML = `
@@ -189,6 +203,14 @@ export function updateResultsModal(resolvedGames, account) {
             </div>
             ${resolveButton}`;
         resultsModalList.appendChild(li);
+    });
+
+    // Add event listeners for resolve buttons
+    document.querySelectorAll('.resolve-game-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const gameId = button.getAttribute('data-game-id');
+            resolveGame(gameId);
+        });
     });
 }
 
