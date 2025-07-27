@@ -211,6 +211,7 @@ socket.on('gameResolution', async (data) => {
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
         return;
     }
+    // Only play animation if this user triggered the resolution
     const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
     updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
     playResultVideo(
