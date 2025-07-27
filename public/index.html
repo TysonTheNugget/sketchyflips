@@ -78,6 +78,8 @@
             border-radius: 0.75rem;
             border: 1px solid #ff9800;
             box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 51;
         }
         .close {
             color: #aaa;
@@ -95,11 +97,14 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
             gap: 0.5rem;
+            pointer-events: auto;
         }
         .nft-item {
             cursor: pointer;
             text-align: center;
             transition: transform 0.2s ease;
+            pointer-events: auto;
+            z-index: 52;
         }
         .nft-item:hover {
             transform: scale(1.05);
@@ -114,6 +119,7 @@
         #videoOverlay {
             opacity: 0;
             transition: opacity 0.8s ease-in-out;
+            z-index: 60;
         }
         #videoOverlay.fade-in {
             opacity: 1;
@@ -183,37 +189,20 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
-        #openGamesList {
+        #openGamesList, #ongoingGamesList, #timedOutGamesList {
             max-height: 200px;
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: #ff9800 #f0f0f0;
         }
-        #openGamesList::-webkit-scrollbar {
+        #openGamesList::-webkit-scrollbar, #ongoingGamesList::-webkit-scrollbar, #timedOutGamesList::-webkit-scrollbar {
             width: 8px;
         }
-        #openGamesList::-webkit-scrollbar-track {
+        #openGamesList::-webkit-scrollbar-track, #ongoingGamesList::-webkit-scrollbar-track, #timedOutGamesList::-webkit-scrollbar-track {
             background: #f0f0f0;
             border-radius: 4px;
         }
-        #openGamesList::-webkit-scrollbar-thumb {
-            background: #ff9800;
-            border-radius: 4px;
-        }
-        #ongoingGamesList, #timedOutGamesList {
-            max-height: 200px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: #ff9800 #f0f0f0;
-        }
-        #ongoingGamesList::-webkit-scrollbar, #timedOutGamesList::-webkit-scrollbar {
-            width: 8px;
-        }
-        #ongoingGamesList::-webkit-scrollbar-track, #timedOutGamesList::-webkit-scrollbar-track {
-            background: #f0f0f0;
-            border-radius: 4px;
-        }
-        #ongoingGamesList::-webkit-scrollbar-thumb, #timedOutGamesList::-webkit-scrollbar-thumb {
+        #openGamesList::-webkit-scrollbar-thumb, #ongoingGamesList::-webkit-scrollbar-thumb, #timedOutGamesList::-webkit-scrollbar-thumb {
             background: #ff9800;
             border-radius: 4px;
         }
@@ -416,9 +405,9 @@
         nftClose.onclick = () => { nftModal.style.display = 'none'; };
         resultsClose.onclick = () => { resultsModal.style.display = 'none'; };
         window.onclick = (event) => {
-            if (event.target == infoModal) infoModal.style.display = 'none';
-            if (event.target == nftModal) nftModal.style.display = 'none';
-            if (event.target == resultsModal) resultsModal.style.display = 'none';
+            if (event.target === infoModal) infoModal.style.display = 'none';
+            if (event.target === nftModal) nftModal.style.display = 'none';
+            if (event.target === resultsModal) resultsModal.style.display = 'none';
         };
 
         document.getElementById('infoButton').addEventListener('click', () => {
@@ -494,6 +483,8 @@
                 document.getElementById('createGameBtn').disabled = userTokens.length === 0;
                 if (userTokens.length === 0) {
                     nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs owned</p>';
+                } else {
+                    displayNFTsInModal();
                 }
                 if (showLoading) hideLoadingScreen();
             } catch (error) {
@@ -518,13 +509,15 @@
                 const img = document.createElement('img');
                 img.src = token.image;
                 img.alt = `NFT #${token.id}`;
+                img.style.pointerEvents = 'none'; // Prevent img from capturing clicks
                 const p = document.createElement('p');
                 p.className = 'text-xs';
                 p.textContent = `#${token.id}`;
                 div.appendChild(img);
                 div.appendChild(p);
-                div.addEventListener('click', () => {
-                    console.log('NFT selected:', token.id);
+                div.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent modal close
+                    console.log('NFT clicked:', token.id);
                     selectNFT(token.id, token.image);
                 });
                 nftGrid.appendChild(div);
@@ -534,7 +527,7 @@
         function selectNFT(tokenId, image) {
             console.log('Selecting NFT with ID:', tokenId);
             selectedTokenId = tokenId;
-            document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${token.id}</p>`;
+            document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
             nftModal.style.display = 'none';
         }
 
