@@ -122,6 +122,11 @@
             opacity: 0;
             transition: opacity 0.8s ease-in-out;
             z-index: 70;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
         #videoOverlay.fade-in {
             opacity: 1;
@@ -178,7 +183,7 @@
         }
         #loadingText {
             color: #fff;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: bold;
             text-shadow: 0 0 10px #ff9800;
             animation: fadeText 1.5s infinite;
@@ -407,11 +412,21 @@
 
         infoClose.onclick = () => { infoModal.style.display = 'none'; };
         nftClose.onclick = () => { nftModal.style.display = 'none'; };
-        resultsClose.onclick = () => { resultsModal.style.display = 'none'; };
+        resultsClose.onclick = () => { 
+            console.log('Closing results modal, marking games as viewed');
+            resolvedGames = resolvedGames.map(game => ({ ...game, viewed: true }));
+            updateResultsModal();
+            resultsModal.style.display = 'none'; 
+        };
         window.onclick = (event) => {
             if (event.target === infoModal) infoModal.style.display = 'none';
             if (event.target === nftModal) nftModal.style.display = 'none';
-            if (event.target === resultsModal) resultsModal.style.display = 'none';
+            if (event.target === resultsModal) {
+                console.log('Clicked outside results modal, marking games as viewed');
+                resolvedGames = resolvedGames.map(game => ({ ...game, viewed: true }));
+                updateResultsModal();
+                resultsModal.style.display = 'none';
+            }
         };
 
         document.getElementById('infoButton').addEventListener('click', () => {
@@ -700,11 +715,12 @@
                 resultsNotification.classList.add('hidden');
                 return;
             }
+            const unviewedCount = resolvedGames.filter(game => !game.viewed).length;
             resultsButton.classList.remove('hidden');
             resultsNotification.classList.remove('hidden');
-            resultsNotification.textContent = resolvedGames.length;
+            resultsNotification.textContent = unviewedCount || '0';
             resolvedGames.forEach(game => {
-                const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() || game.player2.toLowerCase() === account.toLowerCase());
+                const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() || (game.player2 && game.player2.toLowerCase() === account.toLowerCase()));
                 const win = account && game.winner && game.winner.toLowerCase() === account.toLowerCase();
                 const status = game.resolved ? (win ? 'You Won!' : 'You Lost!') : 'Pending';
                 const resolveButton = !game.resolved && isMine ? `<button class="neon-button py-0.5 px-1 text-xs mt-1" onclick="resolveGame(${game.gameId})">Resolve</button>` : '';
@@ -714,7 +730,7 @@
                     <div class="font-bold text-xs">Game #${game.gameId}</div>
                     <div class="flex gap-2 mt-1">
                         <div><span class="text-xs">NFT #${game.tokenId1}</span></div>
-                        <div><span class="text-xs">NFT #${game.tokenId2}</span></div>
+                        <div><span class="text-xs">NFT #${game.tokenId2 || 'N/A'}</span></div>
                     </div>
                     <div class="text-xs mt-1 ${game.resolved ? (win ? 'text-green-500' : 'text-red-500') : 'text-yellow-500'}">
                         ${status} ${game.resolved && game.winner ? `(Winner: ${game.winner.slice(0, 6)}...${game.winner.slice(-4)})` : ''}
@@ -890,6 +906,16 @@
 
         socket.on('gameJoined', async (data) => {
             console.log('Received gameJoined:', data);
+            resolvedGames.push({ 
+                gameId: data.gameId, 
+                player1: data.player1, 
+                tokenId1: data.tokenId1, 
+                player2: data.player2, 
+                tokenId2: data.tokenId2, 
+                resolved: false, 
+                viewed: false 
+            });
+            updateResultsModal();
             updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
             await fetchOngoingGames();
             await fetchTimedOutGames();
@@ -899,7 +925,9 @@
         socket.on('gameResolved', async (data) => {
             console.log('Received gameResolved:', data);
             const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
-            resolvedGames.push({ ...data, resolved: true });
+            resolvedGames = resolvedGames.map(game => 
+                game.gameId === data.gameId ? { ...game, ...data, resolved: true, viewed: false } : game
+            );
             updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
             updateResultsModal();
             playResultVideo(win ? '/win.mp4' : '/lose.mp4', win ? 'You Win!' : 'You Lose!');
@@ -910,7 +938,7 @@
 
         socket.on('resolvedGames', (games) => {
             console.log('Received resolvedGames:', games);
-            resolvedGames = games;
+            resolvedGames = games.map(game => ({ ...game, viewed: game.viewed || false }));
             updateResultsModal();
         });
 
@@ -922,7 +950,7 @@
             }
             if (data.resolved) {
                 resolvedGames = resolvedGames.map(game => 
-                    game.gameId === data.gameId ? { ...game, ...data, resolved: true } : game
+                    game.gameId === data.gameId ? { ...game, ...data, resolved: true, viewed: false } : game
                 );
                 const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
                 updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
