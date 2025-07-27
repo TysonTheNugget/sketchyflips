@@ -1,4 +1,8 @@
+let uiOptions = null;
+
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
+    uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
+    
     // Modal event listeners
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
@@ -112,7 +116,11 @@ export function displayNFTsInModal(userTokens) {
 
 export function selectNFT(tokenId, image) {
     console.log('Selecting NFT with ID:', tokenId);
-    window.setSelectedTokenId(tokenId);
+    if (uiOptions && uiOptions.setSelectedTokenId) {
+        uiOptions.setSelectedTokenId(tokenId);
+    } else {
+        console.error('setSelectedTokenId is not available');
+    }
     document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
     document.getElementById('nftModal').style.display = 'none';
 }
