@@ -12,6 +12,8 @@ body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     display: flex;
     flex-direction: column;
+    text-align: center; /* NEW: Centers all text by default (inherits to h1, p, etc.) */
+    align-items: center; /* NEW: Centers flex children horizontally (e.g., divs with limited width) */
 }
 @media (max-width: 768px) {
     html, body {
@@ -45,6 +47,7 @@ body {
     border: 1px solid #ff9800;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease;
+    text-align: left; /* NEW: Overrides body centering for game cards to keep internal text left-aligned if desired */
 }
 .game-card:hover {
     transform: translateY(-3px);
@@ -266,4 +269,14 @@ body {
     height: 64px;
     border-radius: 0.5rem;
     border: 1px solid #ff9800;
+}
+/* NEW: Center the game interface container */
+#gameInterface {
+    max-width: 480px; /* Adjust as needed for your design; prevents full-width stretch */
+    margin: 0 auto;
+    padding: 1rem; /* Adds some breathing room around the edges */
+}
+/* NEW: Optional override for specific elements that should remain left-aligned */
+.space-y-4 { /* Targets the div inside #gameInterface */
+    text-align: left; /* If you want lists/buttons left-aligned within the centered container */
 }
