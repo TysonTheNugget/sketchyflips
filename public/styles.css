@@ -1,0 +1,269 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+body {
+    background-image: url('/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+@media (max-width: 768px) {
+    html, body {
+        overflow-y: auto;
+    }
+    #gameInterface {
+        height: auto;
+        min-height: 100vh;
+    }
+}
+.neon-button {
+    background: linear-gradient(to right, #ffeb3b, #ff9800);
+    color: black;
+    font-weight: bold;
+    border-radius: 1rem;
+    padding: 0.3rem 0.8rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    font-size: 0.8rem;
+    border: 1px solid #ff9800;
+    cursor: pointer;
+    pointer-events: auto;
+}
+.neon-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 6px rgba(255, 152, 0, 0.5), 0 0 15px rgba(255, 235, 59, 0.3);
+}
+.game-card {
+    background: white;
+    border-radius: 0.75rem;
+    border: 1px solid #ff9800;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+}
+.game-card:hover {
+    transform: translateY(-3px);
+}
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 50;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+    padding-top: 40px;
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 10px;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 0.75rem;
+    border: 1px solid #ff9800;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+    position: relative;
+    z-index: 51;
+}
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+}
+.nft-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 0.5rem;
+    pointer-events: auto;
+}
+.nft-item {
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.2s ease;
+    pointer-events: auto;
+    z-index: 52;
+}
+.nft-item:hover {
+    transform: scale(1.05);
+}
+.nft-item img {
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    border: 1px solid #ff9800;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+#videoOverlay {
+    opacity: 0;
+    transition: opacity 0.8s ease-in-out;
+    z-index: 70;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+#videoOverlay.fade-in {
+    opacity: 1;
+}
+#videoOverlay.fade-out {
+    opacity: 0;
+}
+.info-button {
+    background-color: #ff9800;
+    color: white;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 1rem;
+    height: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+    font-size: 0.6rem;
+    border: 1px solid #fff;
+}
+.info-button:hover {
+    transform: scale(1.1);
+}
+.status-pulse {
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+#loadingScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+#loadingScreen.show {
+    opacity: 1;
+}
+#loadingScreen.hide {
+    opacity: 0;
+    pointer-events: none;
+}
+#loadingText {
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-shadow: 0 0 10px #ff9800;
+    animation: fadeText 1.5s infinite;
+    border: 2px solid #ff9800;
+    padding: 10px;
+    border-radius: 0.5rem;
+}
+@keyframes fadeText {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+#openGamesList {
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #ff9800 #f0f0f0;
+}
+#openGamesList::-webkit-scrollbar {
+    width: 8px;
+}
+#openGamesList::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+#openGamesList::-webkit-scrollbar-thumb {
+    background: #ff9800;
+    border-radius: 4px;
+}
+#resultsButton {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(to right, #ff0000, #ff4500);
+    color: white;
+    font-weight: bold;
+    border-radius: 1rem;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 80;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+    pointer-events: auto;
+}
+#resultsButton:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(255, 69, 0, 0.5);
+}
+#resultsNotification {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+#resultsModalList {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #ff9800 #f0f0f0;
+}
+#resultsModalList::-webkit-scrollbar {
+    width: 8px;
+}
+#resultsModalList::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+#resultsModalList::-webkit-scrollbar-thumb {
+    background: #ff9800;
+    border-radius: 4px;
+}
+#animationNFTs {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+#animationNFTs img {
+    width: 64px;
+    height: 64px;
+    border-radius: 0.5rem;
+    border: 1px solid #ff9800;
+}
