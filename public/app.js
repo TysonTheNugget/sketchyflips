@@ -13,9 +13,11 @@ let provider, signer, account, gameContract, gameContractWithSigner, nftContract
 let selectedTokenId = null;
 let userTokens = [];
 let resolvedGames = [];
+let isResolving = false;
 
 function resolveGame(gameId) {
     console.log('Resolving game:', gameId, 'for account:', account);
+    isResolving = true;
     socket.emit('resolveGame', { gameId, account });
     updateStatus('Checking game resolution...');
 }
@@ -209,19 +211,22 @@ socket.on('gameResolution', async (data) => {
     console.log('Received gameResolution:', data);
     if (data.error) {
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
+        isResolving = false;
         return;
     }
-    const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
-    updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-    playResultVideo(
-        win ? '/win.mp4' : '/lose.mp4', 
-        win ? 'You Win!' : 'You Lose!', 
-        data.image1 || 'https://via.placeholder.com/64', 
-        data.image2 || 'https://via.placeholder.com/64'
-    );
-    // Fetch the latest unresolved games from backend
+    if (isResolving) {
+        const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
+        updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
+        playResultVideo(
+            win ? '/win.mp4' : '/lose.mp4', 
+            win ? 'You Win!' : 'You Lose!', 
+            data.image1 || 'https://via.placeholder.com/64', 
+            data.image2 || 'https://via.placeholder.com/64'
+        );
+    }
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
+    isResolving = false;
 });
 
 socket.on('disconnect', () => {
