@@ -15,7 +15,7 @@ let userTokens = [];
 let resolvedGames = [];
 
 function resolveGame(gameId) {
-    console.log('Resolving game:', gameId);
+    console.log('Resolving game:', gameId, 'for account:', account);
     socket.emit('resolveGame', { gameId, account });
     updateStatus('Checking game resolution...');
 }
@@ -139,10 +139,11 @@ async function fetchUserTokens(showLoading = false) {
             let uri = await nftContract.tokenURI(id);
             if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
             const response = await fetch(uri);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const metadata = await response.json();
             let image = metadata.image;
-            if (image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
-            userTokens.push({ id: id.toString(), image });
+            if (image && image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
+            userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
         }
         console.log('User tokens loaded:', userTokens);
         document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
@@ -218,15 +219,6 @@ socket.on('gameResolution', async (data) => {
         data.image1 || 'https://via.placeholder.com/64', 
         data.image2 || 'https://via.placeholder.com/64'
     );
-    // Mark game as resolved for the user
-    resolvedGames = resolvedGames.map(game => 
-        game.gameId === data.gameId ? {
-            ...game,
-            userResolved: { ...game.userResolved, [account.toLowerCase()]: true },
-            viewed: { ...game.viewed, [account.toLowerCase()]: true }
-        } : game
-    );
-    socket.emit('markGameResolved', { gameId: data.gameId, account });
     socket.emit('removeGame', { gameId: data.gameId, account });
     resolvedGames = resolvedGames.filter(game => game.gameId !== data.gameId);
     updateResultsModal(resolvedGames, account);
