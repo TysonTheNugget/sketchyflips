@@ -46,6 +46,7 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
         gameContractWithSigner = gameContract.connect(signer);
         nftContract = new ethers.Contract(nftAddress, nftABI, signer);
         
+        socket.emit('registerAddress', { address: account });
         await fetchUserTokens(true);
         updateStatus('Connected! Fetching games...');
         socket.emit('fetchResolvedGames', { account });
@@ -163,6 +164,9 @@ async function fetchUserTokens(showLoading = false) {
 // Socket.IO event listeners
 socket.on('connect', () => {
     console.log('Connected to backend:', socket.id);
+    if (account) {
+        socket.emit('registerAddress', { address: account });
+    }
     updateStatus('Connected to backend, waiting for games...');
 });
 
@@ -241,6 +245,9 @@ socket.on('connect_error', (error) => {
 
 socket.on('reconnect', (attempt) => {
     console.log('Reconnected to backend after attempt:', attempt);
+    if (account) {
+        socket.emit('registerAddress', { address: account });
+    }
     updateStatus('Reconnected to backend!');
 });
 
