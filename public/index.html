@@ -417,7 +417,7 @@
         nftClose.onclick = () => { nftModal.style.display = 'none'; };
         resultsClose.onclick = () => { 
             console.log('Closing results modal');
-            socket.emit('markGamesViewed', { account, gameIds: resolvedGames.filter(g => !g.userResolved).map(g => g.gameId) });
+            socket.emit('markGamesViewed', { account, gameIds: resolvedGames.map(g => g.gameId) });
             resultsModal.style.display = 'none'; 
         };
         window.onclick = (event) => {
@@ -425,7 +425,7 @@
             if (event.target === nftModal) nftModal.style.display = 'none';
             if (event.target === resultsModal) {
                 console.log('Clicked outside results modal');
-                socket.emit('markGamesViewed', { account, gameIds: resolvedGames.filter(g => !g.userResolved).map(g => g.gameId) });
+                socket.emit('markGamesViewed', { account, gameIds: resolvedGames.map(g => g.gameId) });
                 resultsModal.style.display = 'none';
             }
         };
@@ -815,26 +815,17 @@
                 updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
                 return;
             }
-            resolvedGames = resolvedGames.map(game => 
-                game.gameId === data.gameId ? { 
-                    ...game, 
-                    winner: data.winner, 
-                    resolved: true, 
-                    userResolved: { ...game.userResolved, [account.toLowerCase()]: true }, 
-                    viewed: { ...game.viewed, [account.toLowerCase()]: false },
-                    image1: data.image1,
-                    image2: data.image2
-                } : game
-            );
             const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
             updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-            updateResultsModal();
             playResultVideo(
                 win ? '/win.mp4' : '/lose.mp4', 
                 win ? 'You Win!' : 'You Lose!', 
                 data.image1, 
                 data.image2
             );
+            socket.emit('removeGame', { gameId: data.gameId, account });
+            resolvedGames = resolvedGames.filter(game => game.gameId !== data.gameId);
+            updateResultsModal();
             await fetchUserTokens();
         });
 
