@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body class="text-black">
+<body class="text-black min-h-screen">
   <!-- Header -->
   <header class="w-full text-center py-2 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm">
     <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Dapps 🎲</h1>
@@ -31,7 +31,7 @@
 
     <div class="game-card p-2 flex-grow">
       <h2 class="text-sm text-center mb-1 font-bold">Your Staked NFTs</h2>
-      <div id="stakedNFTs" class="space-y-2 overflow-y-auto"></div>
+      <div id="stakedNFTs" class="space-y-2 overflow-y-auto max-h-64"></div>
     </div>
 
     <p id="totalPoints" class="game-card p-2 text-center text-xs font-bold">Total Points: 0</p>
@@ -45,16 +45,18 @@
     <div class="game-card p-2">
       <h2 class="text-sm text-center mb-1 font-bold">Leaderboard</h2>
       <button id="refreshLeaderboard" class="neon-button w-full mt-1">Refresh Leaderboard</button>
-      <table class="w-full mt-2 border-collapse border border-orange-500 text-xs">
-        <thead>
-          <tr class="bg-orange-100">
-            <th class="border border-orange-500 p-1">Rank</th>
-            <th class="border border-orange-500 p-1">Address</th>
-            <th class="border border-orange-500 p-1">Points</th>
-          </tr>
-        </thead>
-        <tbody id="leaderboardBody"></tbody>
-      </table>
+      <div class="overflow-y-auto max-h-64 mt-2">
+        <table class="w-full border-collapse border border-orange-500 text-xs">
+          <thead>
+            <tr class="bg-orange-100">
+              <th class="border border-orange-500 p-1">Rank</th>
+              <th class="border border-orange-500 p-1">Address</th>
+              <th class="border border-orange-500 p-1">Points</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -80,11 +82,11 @@
       {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},
       {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
       {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"tokensOfOwner","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
-      {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}
+      {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
     ];
 
     let provider, signer, account, daycareContract, nftContract;
-    let userTokens = [];
     let selectedTokens = [];
     let stakedNFTs = [];
 
@@ -134,8 +136,9 @@
     async function fetchUserTokens() {
       userTokens = [];
       try {
-        const tokens = await nftContract.tokensOfOwner(account);
-        for (let id of tokens) {
+        const balance = await nftContract.balanceOf(account);
+        for (let i = 0; i < balance.toNumber(); i++) {
+          const id = await nftContract.tokenOfOwnerByIndex(account, i);
           const image = await getNFTImage(id);
           userTokens.push({ id: id.toString(), image });
         }
@@ -143,6 +146,7 @@
       } catch (error) {
         console.error("Error fetching user tokens:", error);
         document.getElementById("selectNFTBtn").disabled = true;
+        document.getElementById("selectedNFTs").textContent = 'Error loading NFTs: ' + error.message;
       }
     }
 
