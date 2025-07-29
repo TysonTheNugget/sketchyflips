@@ -39,7 +39,7 @@
     <div class="game-card p-2">
       <h2 class="text-sm text-center mb-1 font-bold">Burn Points</h2>
       <input id="burnAmount" type="number" min="1" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs" placeholder="Amount to burn">
-      <button id="burnBtn" class="neon-button w-full mt-1">Burn Points</button>
+      <button id="burnBtn" class="neon-button w-full mt-1" disabled>Burn Points</button>
     </div>
 
     <div class="game-card p-2">
@@ -105,7 +105,8 @@
         if (event.target === modal) modal.style.display = 'none';
       });
 
-      await connectWallet();
+      // Removed auto connect
+      // await connectWallet();
       await loadLeaderboard();
     }
 
@@ -129,6 +130,7 @@
         await updateTotalPoints();
         document.getElementById("selectNFTBtn").disabled = userTokens.length === 0;
         document.getElementById("dropOffBtn").disabled = true;
+        document.getElementById("burnBtn").disabled = false;
       } catch (error) {
         alert(`Connection error: ${error.message}`);
       }
