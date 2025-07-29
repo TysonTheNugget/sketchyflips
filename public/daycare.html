@@ -87,6 +87,7 @@
     ];
 
     let provider, signer, account, daycareContract, nftContract;
+    let userTokens = [];
     let selectedTokens = [];
     let stakedNFTs = [];
 
@@ -136,9 +137,8 @@
     async function fetchUserTokens() {
       userTokens = [];
       try {
-        const balance = await nftContract.balanceOf(account);
-        for (let i = 0; i < balance.toNumber(); i++) {
-          const id = await nftContract.tokenOfOwnerByIndex(account, i);
+        const tokens = await nftContract.tokensOfOwner(account);
+        for (let id of tokens) {
           const image = await getNFTImage(id);
           userTokens.push({ id: id.toString(), image });
         }
@@ -146,7 +146,6 @@
       } catch (error) {
         console.error("Error fetching user tokens:", error);
         document.getElementById("selectNFTBtn").disabled = true;
-        document.getElementById("selectedNFTs").textContent = 'Error loading NFTs: ' + error.message;
       }
     }
 
