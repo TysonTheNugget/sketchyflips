@@ -1,83 +1,329 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stake-A-Milio</title>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="icon" href="/favicon.ico">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stake-A-Milio</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="text-black min-h-screen">
-    <!-- Header -->
-    <header class="w-full text-center py-2 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm">
-        <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Dapps 🎲</h1>
-        <p class="text-xs md:text-sm text-white">Fun, friends, NFTs!</p>
-    </header>
+  <!-- Header -->
+  <header class="w-full text-center py-2 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm">
+    <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Dapps 🎲</h1>
+    <p class="text-xs md:text-sm text-white">Fun, friends, NFTs!</p>
+  </header>
 
-    <!-- Main Content -->
-    <div class="w-full max-w-4xl p-2 flex flex-col gap-2 mx-auto">
-        <button id="homeButton" class="neon-button">Home</button>
-        <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
-        <p id="account" class="game-card p-1 text-center text-xs">Account: Not connected</p>
+  <!-- Main Content -->
+  <div class="w-full max-w-4xl p-2 flex flex-col gap-2 mx-auto">
+    <button id="homeButton" class="neon-button">Home</button>
 
-        <div class="game-card p-2">
-            <h2 class="text-sm text-center mb-1 font-bold">Stake NFTs</h2>
-            <button id="selectNFTBtn" class="neon-button w-full mt-1" disabled>🎯 Select NFTs to Stake</button>
-            <div id="selectedNFTs" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs mt-1">No NFTs selected</div>
-            <button id="dropOffBtn" class="neon-button w-full mt-1" disabled>🎰 Stake Selected NFTs</button>
-        </div>
+    <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
+    <p id="account" class="game-card p-1 text-center text-xs">Account: Not connected</p>
 
-        <div class="game-card p-2 flex-grow">
-            <h2 class="text-sm text-center mb-1 font-bold">Your Staked NFTs</h2>
-            <div id="stakedNFTs" class="space-y-2 overflow-y-auto max-h-64"></div>
-            <button id="claimAllButton" class="neon-button w-full mt-1" style="display:none;">Claim All</button>
-            <button id="pickUpAllButton" class="neon-button w-full mt-1" style="display:none;">Pick Up All</button>
-        </div>
+    <div class="game-card p-2">
+      <h2 class="text-sm text-center mb-1 font-bold">Stake NFTs</h2>
+      <button id="selectNFTBtn" class="neon-button w-full mt-1" disabled>🎯 Select NFTs to Stake</button>
+      <div id="selectedNFTs" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs mt-1">No NFTs selected</div>
+      <button id="dropOffBtn" class="neon-button w-full mt-1" disabled>🎰 Stake Selected NFTs</button>
+    </div>
 
-        <p id="totalPoints" class="game-card p-2 text-center text-xs font-bold">Total Points: 0</p>
+    <div class="game-card p-2 flex-grow">
+      <h2 class="text-sm text-center mb-1 font-bold">Your Staked NFTs</h2>
+      <div id="stakedNFTs" class="space-y-2 overflow-y-auto max-h-64"></div>
+    </div>
 
-        <div class="game-card p-2">
-            <h2 class="text-sm text-center mb-1 font-bold">Burn Points</h2>
-            <input id="burnAmount" type="number" min="1" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs" placeholder="Amount to burn">
-            <button id="burnBtn" class="neon-button w-full mt-1" disabled>Burn Points</button>
-        </div>
+    <p id="totalPoints" class="game-card p-2 text-center text-xs font-bold">Total Points: 0</p>
 
-        <div class="game-card p-2">
-            <h2 class="text-sm text-center mb-1 font-bold">Leaderboard</h2>
-            <button id="refreshLeaderboard" class="neon-button w-full mt-1">Refresh Leaderboard</button>
-            <div class="overflow-y-auto max-h-64 mt-2">
-                <table class="w-full border-collapse border border-orange-500 text-xs">
-                    <thead>
-                        <tr class="bg-orange-100">
-                            <th class="border border-orange-500 p-1">Rank</th>
-                            <th class="border border-orange-500 p-1">Address</th>
-                            <th class="border border-orange-500 p-1">Points</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leaderboardBody"></tbody>
-                </table>
+    <div class="game-card p-2">
+      <h2 class="text-sm text-center mb-1 font-bold">Burn Points</h2>
+      <input id="burnAmount" type="number" min="1" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs" placeholder="Amount to burn">
+      <button id="burnBtn" class="neon-button w-full mt-1" disabled>Burn Points</button>
+    </div>
+
+    <div class="game-card p-2">
+      <h2 class="text-sm text-center mb-1 font-bold">Leaderboard</h2>
+      <button id="refreshLeaderboard" class="neon-button w-full mt-1">Refresh Leaderboard</button>
+      <div class="overflow-y-auto max-h-64 mt-2">
+        <table class="w-full border-collapse border border-orange-500 text-xs">
+          <thead>
+            <tr class="bg-orange-100">
+              <th class="border border-orange-500 p-1">Rank</th>
+              <th class="border border-orange-500 p-1">Address</th>
+              <th class="border border-orange-500 p-1">Points</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- NFT Selection Modal -->
+  <div id="nftModal" class="modal">
+    <div class="modal-content">
+      <span class="close">×</span>
+      <h2 class="text-lg text-center mb-2 font-bold">Select NFTs</h2>
+      <div id="nftGrid" class="nft-grid"></div>
+      <button id="selectMultipleBtn" class="neon-button w-full mt-2">Confirm Selection</button>
+    </div>
+  </div>
+
+  <script>
+    const contractAddress = "0xd32247484111569930a0b9c7e669e8E108392496";
+    const nftAddress = "0x08533a2b16e3db03eebd5b23210122f97dfcb97d";
+    const contractABI = [{"inputs":[{"internalType":"address","name":"_nftAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"OwnableInvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"OwnableUnauthorizedAccount","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Claimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"startTime","type":"uint256"}],"name":"DroppedOff","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"PickedUp","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PointsAdded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PointsBurned","type":"event"},{"anonymous":false,"inputs":[],"name":"PointsEditingLocked","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"}],"name":"UserAdded","type":"event"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"addPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address[]","name":"users","type":"address[]"},{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"name":"addPointsBatch","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"burnPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"daycareIndices","type":"uint256[]"}],"name":"claimMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"claimPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"daycares","outputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"claimedPoints","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"dropOff","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"dropOffMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getDaycares","outputs":[{"components":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"claimedPoints","type":"uint256"}],"internalType":"struct MymilioDaycare.DaycareInfo[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getLeaderboard","outputs":[{"internalType":"address[]","name":"","type":"address[]"},{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"getPendingPoints","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getTotalPoints","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"lockPointsEditing","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"nft","outputs":[{"internalType":"contract IERC721","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"pickUp","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"daycareIndices","type":"uint256[]"}],"name":"pickUpMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"points","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pointsEditingLocked","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pointsPerDay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"userAddresses","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}];
+    const nftABI = [
+      {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"tokensOfOwner","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+    ];
+
+    let provider, signer, account, daycareContract, nftContract;
+    let userTokens = [];
+    let selectedTokens = [];
+    let stakedNFTs = [];
+
+    async function init() {
+      document.getElementById("connectWallet").addEventListener("click", connectWallet);
+      document.getElementById("selectNFTBtn").addEventListener("click", openNFTModal);
+      document.getElementById("dropOffBtn").addEventListener("click", dropOffSelected);
+      document.getElementById("refreshLeaderboard").addEventListener("click", loadLeaderboard);
+      document.getElementById("homeButton").addEventListener("click", () => window.location.href = "index.html");
+      document.getElementById("burnBtn").addEventListener("click", burnPoints);
+
+      const modal = document.getElementById("nftModal");
+      modal.querySelector('.close').addEventListener("click", () => modal.style.display = 'none');
+      window.addEventListener("click", (event) => {
+        if (event.target === modal) modal.style.display = 'none';
+      });
+
+      // Removed auto connect
+      // await connectWallet();
+      await loadLeaderboard();
+    }
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert("Please install MetaMask.");
+        return;
+      }
+      try {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        account = await signer.getAddress();
+        document.getElementById("account").textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
+
+        daycareContract = new ethers.Contract(contractAddress, contractABI, signer);
+        nftContract = new ethers.Contract(nftAddress, nftABI, signer);
+
+        await fetchUserTokens();
+        await fetchStakedNFTs();
+        await updateTotalPoints();
+        document.getElementById("selectNFTBtn").disabled = userTokens.length === 0;
+        document.getElementById("dropOffBtn").disabled = true;
+        document.getElementById("burnBtn").disabled = false;
+      } catch (error) {
+        alert(`Connection error: ${error.message}`);
+      }
+    }
+
+    async function fetchUserTokens() {
+      userTokens = [];
+      try {
+        const tokens = await nftContract.tokensOfOwner(account);
+        for (let id of tokens) {
+          const image = await getNFTImage(id);
+          userTokens.push({ id: id.toString(), image });
+        }
+        document.getElementById("selectNFTBtn").disabled = userTokens.length === 0;
+      } catch (error) {
+        console.error("Error fetching user tokens:", error);
+        document.getElementById("selectNFTBtn").disabled = true;
+      }
+    }
+
+    async function getNFTImage(tokenId) {
+      try {
+        let uri = await nftContract.tokenURI(tokenId);
+        if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+        const response = await fetch(uri);
+        if (!response.ok) throw new Error('Failed to fetch metadata');
+        const metadata = await response.json();
+        let image = metadata.image || 'https://via.placeholder.com/64';
+        if (image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
+        return image;
+      } catch (error) {
+        console.error(`Error fetching image for token ${tokenId}:`, error);
+        return 'https://via.placeholder.com/64';
+      }
+    }
+
+    async function fetchStakedNFTs() {
+      try {
+        stakedNFTs = await daycareContract.getDaycares(account);
+        const stakedDiv = document.getElementById("stakedNFTs");
+        stakedDiv.innerHTML = '';
+        if (stakedNFTs.length === 0) {
+          stakedDiv.innerHTML = '<p class="text-xs text-center opacity-70">No NFTs staked</p>';
+          return;
+        }
+        for (let i = 0; i < stakedNFTs.length; i++) {
+          const stake = stakedNFTs[i];
+          const tokenId = stake.tokenId.toNumber();
+          const pending = (await daycareContract.getPendingPoints(account, i)).toNumber();
+          const image = await getNFTImage(tokenId);
+          const div = document.createElement("div");
+          div.className = "p-1 flex justify-between items-center border-b border-orange-200 last:border-b-0";
+          div.innerHTML = `
+            <div class="flex items-center">
+              <img src="${image}" alt="NFT #${tokenId}" class="w-10 h-10 mr-2 rounded shadow border border-orange-500">
+              <div>
+                <span class="text-xs font-bold">NFT #${tokenId}</span><br>
+                <span class="text-xs opacity-70">Pending: ${pending} points</span>
+              </div>
             </div>
-        </div>
-    </div>
+            <div class="flex gap-1">
+              ${pending > 0 ? `<button class="neon-button text-xs px-2 py-1 claim-btn" data-index="${i}">Claim</button>` : ''}
+              <button class="neon-button text-xs px-2 py-1 pickup-btn" data-index="${i}" ${pending > 0 ? 'disabled' : ''}>Pick Up</button>
+            </div>
+          `;
+          stakedDiv.appendChild(div);
+        }
+        document.querySelectorAll('.claim-btn').forEach(btn => btn.addEventListener('click', claimPoints));
+        document.querySelectorAll('.pickup-btn').forEach(btn => btn.addEventListener('click', pickUp));
+        await updateTotalPoints();
+      } catch (error) {
+        console.error("Error fetching staked NFTs:", error);
+        document.getElementById("stakedNFTs").innerHTML = '<p class="text-xs text-center text-red-500">Error loading staked NFTs</p>';
+      }
+    }
 
-    <!-- NFT Selection Modal -->
-    <div id="nftModal" class="modal">
-        <div class="modal-content">
-            <span class="close">×</span>
-            <h2 class="text-lg text-center mb-2 font-bold">Select NFTs</h2>
-            <div id="nftGrid" class="nft-grid"></div>
-            <button id="selectMultipleBtn" class="neon-button w-full mt-2">Confirm Selection</button>
-        </div>
-    </div>
+    async function updateTotalPoints() {
+      try {
+        const total = await daycareContract.getTotalPoints(account);
+        document.getElementById("totalPoints").textContent = `Total Points: ${total.toNumber()}`;
+      } catch (error) {
+        console.error("Error updating total points:", error);
+      }
+    }
 
-    <!-- Loading Spinner -->
-    <div id="loadingScreen" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
-        <p id="loadingText" class="text-white text-lg font-bold border-2 border-orange-500 p-2 rounded animate-pulse">Processing...</p>
-    </div>
+    function openNFTModal() {
+      const nftGrid = document.getElementById("nftGrid");
+      nftGrid.innerHTML = '';
+      if (userTokens.length === 0) {
+        nftGrid.innerHTML = '<p class="text-xs text-center opacity-70">No NFTs available to stake</p>';
+      } else {
+        userTokens.forEach(token => {
+          const div = document.createElement("div");
+          div.className = 'p-1';
+          div.innerHTML = `
+            <img src="${token.image}" alt="NFT #${token.id}" class="w-full h-auto rounded border border-orange-500">
+            <p class="text-xs text-center">#${token.id}</p>
+            <input type="checkbox" class="select-checkbox mx-auto block" data-id="${token.id}">
+          `;
+          nftGrid.appendChild(div);
+        });
+      }
+      document.getElementById("nftModal").style.display = 'block';
+      document.getElementById("selectMultipleBtn").addEventListener("click", selectMultiple, { once: true });
+    }
 
-    <script src="daycarestuff.js"></script>
-</body>
+    function selectMultiple() {
+      selectedTokens = Array.from(document.querySelectorAll('.select-checkbox:checked')).map(checkbox => checkbox.dataset.id);
+      document.getElementById("nftModal").style.display = 'none';
+      const selectedDiv = document.getElementById("selectedNFTs");
+      selectedDiv.textContent = selectedTokens.length > 0 ? `Selected: ${selectedTokens.join(", ")}` : 'No NFTs selected';
+      document.getElementById("dropOffBtn").disabled = selectedTokens.length === 0;
+    }
+
+    async function dropOffSelected() {
+      if (selectedTokens.length === 0) return;
+      try {
+        for (let id of selectedTokens) {
+          await nftContract.approve(contractAddress, id);
+        }
+        const tx = await daycareContract.dropOffMultiple(selectedTokens);
+        await tx.wait();
+        selectedTokens = [];
+        document.getElementById("selectedNFTs").textContent = 'No NFTs selected';
+        document.getElementById("dropOffBtn").disabled = true;
+        await fetchUserTokens();
+        await fetchStakedNFTs();
+      } catch (error) {
+        alert(`Error staking NFTs: ${error.message}`);
+      }
+    }
+
+    async function claimPoints(e) {
+      const index = e.target.dataset.index;
+      try {
+        const tx = await daycareContract.claimPoints(index);
+        await tx.wait();
+        await fetchStakedNFTs();
+      } catch (error) {
+        alert(`Error claiming points: ${error.message}`);
+      }
+    }
+
+    async function pickUp(e) {
+      const index = e.target.dataset.index;
+      try {
+        const tx = await daycareContract.pickUp(index);
+        await tx.wait();
+        await fetchUserTokens();
+        await fetchStakedNFTs();
+      } catch (error) {
+        alert(`Error picking up NFT: ${error.message}`);
+      }
+    }
+
+    async function burnPoints() {
+      const amount = parseInt(document.getElementById("burnAmount").value);
+      if (isNaN(amount) || amount <= 0) {
+        alert("Enter a valid positive amount.");
+        return;
+      }
+      try {
+        const tx = await daycareContract.burnPoints(amount);
+        await tx.wait();
+        await updateTotalPoints();
+        document.getElementById("burnAmount").value = '';
+      } catch (error) {
+        alert(`Error burning points: ${error.message}`);
+      }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const [addresses, pointsArray] = await daycareContract.getLeaderboard();
+        const leaderboard = addresses.map((addr, i) => ({ address: addr, points: pointsArray[i].toNumber() }))
+          .sort((a, b) => b.points - a.points);
+        const tbody = document.getElementById("leaderboardBody");
+        tbody.innerHTML = '';
+        leaderboard.forEach((entry, index) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="border border-orange-500 p-1">${index + 1}</td>
+            <td class="border border-orange-500 p-1">${entry.address.slice(0, 6)}...${entry.address.slice(-4)}</td>
+            <td class="border border-orange-500 p-1">${entry.points}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error("Error loading leaderboard:", error);
+      }
+    }
+
+    window.addEventListener("load", init);
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96724d0948294c1c',t:'MTc1Mzg1MTcxNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
