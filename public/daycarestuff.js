@@ -78,7 +78,7 @@ const homeButton = document.getElementById('homeButton');
 if (homeButton) {
     homeButton.addEventListener('click', () => {
         console.log('Home button clicked');
-        window.location.href = 'daycare.html';
+        window.location.href = 'daycasre.html';
     });
 } else {
     console.error('Home button not found');
