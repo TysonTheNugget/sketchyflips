@@ -518,6 +518,13 @@
     }
 
     function updateLeaderboard(leaderboard) {
+      leaderboard = [...leaderboard].sort((a, b) => {
+        const pa = BigInt(a.points);
+        const pb = BigInt(b.points);
+        if (pa > pb) return -1;
+        if (pa < pb) return 1;
+        return 0;
+      });
       const tbody = document.getElementById("leaderboardBody");
       tbody.innerHTML = '';
       leaderboard.forEach((entry, index) => {
