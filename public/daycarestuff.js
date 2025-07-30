@@ -1,3 +1,5 @@
+console.log('daycarestuff.js loaded');
+
 // Constants
 const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
 const daycareAddress = '0xd32247484111569930a0b9c7e669e8E108392496';
@@ -20,165 +22,257 @@ let selectedTokenIds = [];
 let stakedTokenIds = [];
 let stakedCount = 0;
 
+// Initialize page
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded');
+    const modal = document.getElementById('nftModal');
+    if (modal) modal.style.display = 'none';
+    const videoOverlay = document.getElementById('videoOverlay');
+    if (videoOverlay) videoOverlay.style.display = 'none';
+    document.getElementById('loadingScreen').classList.add('hidden');
+});
+
 // Loading screen functions
 function showLoadingScreen() {
-    document.getElementById('loadingScreen').classList.remove('hidden');
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.classList.remove('hidden');
+    } else {
+        console.error('Loading screen element not found');
+    }
 }
 function hideLoadingScreen() {
-    document.getElementById('loadingScreen').classList.add('hidden');
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+    } else {
+        console.error('Loading screen element not found');
+    }
 }
 
 // Event listeners
-document.getElementById('stakeButton').addEventListener('click', () => {
-    document.getElementById('mainMenu').classList.add('hidden');
-    document.getElementById('gameInterface').classList.add('hidden');
-    document.getElementById('stakeContainer').classList.remove('hidden');
-});
+const stakeButton = document.getElementById('stakeButton');
+if (stakeButton) {
+    stakeButton.addEventListener('click', () => {
+        console.log('Stake button clicked');
+        document.getElementById('mainMenu').classList.add('hidden');
+        document.getElementById('gameInterface').classList.add('hidden');
+        document.getElementById('stakeContainer').classList.remove('hidden');
+    });
+} else {
+    console.error('Stake button not found');
+}
 
-document.getElementById('backButton').addEventListener('click', () => {
-    document.getElementById('stakeContainer').classList.add('hidden');
-    document.getElementById('mainMenu').classList.remove('hidden');
-});
+const backButton = document.getElementById('backButton');
+if (backButton) {
+    backButton.addEventListener('click', () => {
+        console.log('Back button clicked');
+        document.getElementById('stakeContainer').classList.add('hidden');
+        document.getElementById('mainMenu').classList.remove('hidden');
+    });
+} else {
+    console.error('Back button not found');
+}
 
-document.getElementById('homeButton').addEventListener('click', () => {
-    window.location.href = 'index.html';
-});
+const homeButton = document.getElementById('homeButton');
+if (homeButton) {
+    homeButton.addEventListener('click', () => {
+        console.log('Home button clicked');
+        window.location.href = 'index.html';
+    });
+} else {
+    console.error('Home button not found');
+}
 
-document.getElementById('connectWallet').addEventListener('click', async () => {
-    if (window.ethereum) {
-        try {
-            showLoadingScreen();
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-            provider = new ethers.providers.Web3Provider(window.ethereum);
-            signer = provider.getSigner();
-            account = await signer.getAddress();
-            document.getElementById('account').innerText = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
+const connectWallet = document.getElementById('connectWallet');
+if (connectWallet) {
+    connectWallet.addEventListener('click', async () => {
+        console.log('Connect Wallet clicked');
+        if (window.ethereum) {
+            try {
+                showLoadingScreen();
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                account = await signer.getAddress();
+                document.getElementById('account').innerText = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
 
-            // Check/switch chain
-            const currentChain = await provider.getNetwork();
-            if (currentChain.chainId !== 2741) {
-                await window.ethereum.request({
-                    method: 'wallet_addEthereumChain',
-                    params: [{
-                        chainId: chainId,
-                        chainName: 'Abstract',
-                        rpcUrls: ['https://api.mainnet.abs.xyz'],
-                        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-                        blockExplorerUrls: ['https://abscan.org']
-                    }]
-                });
+                const currentChain = await provider.getNetwork();
+                if (currentChain.chainId !== 2741) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: chainId,
+                            chainName: 'Abstract',
+                            rpcUrls: ['https://api.mainnet.abs.xyz'],
+                            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                            blockExplorerUrls: ['https://abscan.org']
+                        }]
+                    });
+                }
+
+                nftContract = new ethers.Contract(nftAddress, nftABI, signer);
+                daycareContract = new ethers.Contract(daycareAddress, daycareABI, signer);
+                socket.emit('registerAddress', { address: account });
+                socket.emit('fetchUserDaycare', { account });
+                document.getElementById('selectNFTBtn').disabled = false;
+                document.getElementById('burnBtn').disabled = false;
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+                alert(`Wallet connection failed: ${error.message || 'Unknown error'}`);
+            } finally {
+                hideLoadingScreen();
             }
-
-            // Init contracts
-            nftContract = new ethers.Contract(nftAddress, nftABI, signer);
-            daycareContract = new ethers.Contract(daycareAddress, daycareABI, signer);
-
-            // Register with backend
-            socket.emit('registerAddress', { address: account });
-
-            // Fetch user data
-            socket.emit('fetchUserDaycare', { account });
-            document.getElementById('selectNFTBtn').disabled = false;
-            document.getElementById('burnBtn').disabled = false;
-        } catch (error) {
-            alert('Wallet connection failed: ' + error.message);
-        } finally {
-            hideLoadingScreen();
+        } else {
+            alert('Please install MetaMask!');
         }
-    } else {
-        alert('Please install MetaMask!');
-    }
-});
+    });
+} else {
+    console.error('Connect Wallet button not found');
+}
 
 // Socket listeners
+socket.on('connect_error', (error) => {
+    console.error('Socket connection failed:', error);
+    alert('Failed to connect to backend. Please try again later.');
+});
+
 socket.on('leaderboardUpdate', (data) => {
     const tableBody = document.getElementById('leaderboardBody');
-    tableBody.innerHTML = '';
-    data.forEach((entry, index) => {
-        const row = `<tr><td class="border border-orange-500 p-1">${index + 1}</td><td class="border border-orange-500 p-1">${entry.address.slice(0,6)}...${entry.address.slice(-4)}</td><td class="border border-orange-500 p-1">${entry.points}</td></tr>`;
-        tableBody.innerHTML += row;
-    });
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        data.forEach((entry, index) => {
+            const row = `<tr><td class="border border-orange-500 p-1">${index + 1}</td><td class="border border-orange-500 p-1">${entry.address.slice(0,6)}...${entry.address.slice(-4)}</td><td class="border border-orange-500 p-1">${entry.points}</td></tr>`;
+            tableBody.innerHTML += row;
+        });
+    } else {
+        console.error('Leaderboard body not found');
+    }
 });
 
 socket.on('userDaycareUpdate', (data) => {
-    document.getElementById('totalPoints').innerText = `Total Points: ${data.points}`;
+    const totalPoints = document.getElementById('totalPoints');
+    if (totalPoints) {
+        totalPoints.innerText = `Total Points: ${data.points}`;
+    }
     const stakedList = document.getElementById('stakedNFTs');
-    stakedList.innerHTML = '';
-    stakedTokenIds = [];
-    stakedCount = data.daycares.length;
-    data.daycares.forEach((d, index) => {
-        stakedTokenIds.push(d.tokenId);
-        const item = `<div class="p-1 flex justify-between items-center border-b border-orange-200 last:border-b-0">
-            <div class="flex items-center">
-                <img src="${d.image}" alt="NFT ${d.tokenId}" class="w-10 h-10 mr-2 rounded shadow border border-orange-500">
-                <div>
-                    <span class="text-xs font-bold">NFT #${d.tokenId}</span><br>
-                    <span class="text-xs opacity-70">Pending: ${d.pending} points</span>
+    if (stakedList) {
+        stakedList.innerHTML = '';
+        stakedTokenIds = [];
+        stakedCount = data.daycares.length;
+        data.daycares.forEach((d, index) => {
+            stakedTokenIds.push(d.tokenId);
+            const item = `<div class="p-1 flex justify-between items-center border-b border-orange-200 last:border-b-0">
+                <div class="flex items-center">
+                    <img src="${d.image}" alt="NFT ${d.tokenId}" class="w-10 h-10 mr-2 rounded shadow border border-orange-500">
+                    <div>
+                        <span class="text-xs font-bold">NFT #${d.tokenId}</span><br>
+                        <span class="text-xs opacity-70">Pending: ${d.pending} points</span>
+                    </div>
                 </div>
-            </div>
-            <div class="flex gap-1">
-                <button class="neon-button text-xs px-2 py-1 claim-btn" data-index="${index}" ${d.pending == 0 ? 'disabled' : ''}>Claim</button>
-                <button class="neon-button text-xs px-2 py-1 pickup-btn" data-index="${index}">Pick Up</button>
-            </div>
-        </div>`;
-        stakedList.innerHTML += item;
-    });
-    document.getElementById('claimAllButton').style.display = stakedCount > 0 ? 'block' : 'none';
-    document.getElementById('pickUpAllButton').style.display = stakedCount > 0 ? 'block' : 'none';
-    document.querySelectorAll('.claim-btn').forEach(btn => btn.addEventListener('click', claimPoints));
-    document.querySelectorAll('.pickup-btn').forEach(btn => btn.addEventListener('click', pickUp));
-});
-
-// Refresh leaderboard
-document.getElementById('refreshLeaderboard').addEventListener('click', () => {
-    socket.emit('refreshLeaderboard');
-});
-
-// Select NFTs modal
-const modal = document.getElementById('nftModal');
-const closeModal = document.getElementsByClassName('close')[0];
-closeModal.onclick = () => { modal.style.display = 'none'; };
-window.onclick = (event) => {
-    if (event.target === modal) modal.style.display = 'none';
-};
-
-document.getElementById('selectNFTBtn').addEventListener('click', async () => {
-    if (!account) return alert('Connect wallet first');
-    try {
-        showLoadingScreen();
-        const balance = await nftContract.balanceOf(account);
-        const nftGrid = document.getElementById('nftGrid');
-        nftGrid.innerHTML = '';
-        selectedTokenIds = [];
-        if (balance == 0) {
-            nftGrid.innerHTML = '<p class="text-xs text-center opacity-70">No NFTs available to stake</p>';
-        } else {
-            for (let i = 0; i < balance; i++) {
-                const tokenId = await nftContract.tokenOfOwnerByIndex(account, i);
-                if (stakedTokenIds.includes(tokenId.toString())) continue;
-                let uri = await nftContract.tokenURI(tokenId);
-                if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
-                const response = await fetch(uri);
-                const metadata = await response.json();
-                const image = metadata.image.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + metadata.image.slice(7) : metadata.image;
-                const div = document.createElement('div');
-                div.className = 'p-1';
-                div.innerHTML = `
-                    <img src="${image}" alt="NFT #${tokenId}" class="w-full h-auto rounded border border-orange-500">
-                    <p class="text-xs text-center">#${tokenId}</p>
-                    <input type="checkbox" class="select-checkbox mx-auto block" data-id="${tokenId}">
-                `;
-                nftGrid.appendChild(div);
-            }
-        }
-        modal.style.display = 'block';
-        document.getElementById('selectMultipleBtn').addEventListener('click', selectMultiple, { once: true });
-    } catch (error) {
-        alert('Error loading NFTs: ' + error.message);
-    } finally {
-        hideLoadingScreen();
+                <div class="flex gap-1">
+                    <button class="neon-button text-xs px-2 py-1 claim-btn" data-index="${index}" ${d.pending == 0 ? 'disabled' : ''}>Claim</button>
+                    <button class="neon-button text-xs px-2 py-1 pickup-btn" data-index="${index}">Pick Up</button>
+                </div>
+            </div>`;
+            stakedList.innerHTML += item;
+        });
+        document.getElementById('claimAllButton').style.display = stakedCount > 0 ? 'block' : 'none';
+        document.getElementById('pickUpAllButton').style.display = stakedCount > 0 ? 'block' : 'none';
+        document.querySelectorAll('.claim-btn').forEach(btn => btn.addEventListener('click', claimPoints));
+        document.querySelectorAll('.pickup-btn').forEach(btn => btn.addEventListener('click', pickUp));
+    } else {
+        console.error('Staked NFTs list not found');
     }
 });
+
+const refreshLeaderboard = document.getElementById('refreshLeaderboard');
+if (refreshLeaderboard) {
+    refreshLeaderboard.addEventListener('click', () => {
+        console.log('Refresh Leaderboard clicked');
+        socket.emit('refreshLeaderboard');
+    });
+} else {
+    console.error('Refresh Leaderboard button not found');
+}
+
+const modal = document.getElementById('nftModal');
+const closeModal = document.getElementsByClassName('close')[0];
+if (closeModal) {
+    closeModal.addEventListener('click', () => {
+        console.log('Close modal clicked');
+        modal.style.display = 'none';
+    });
+} else {
+    console.error('Close modal button not found');
+}
+window.addEventListener('click', (event) => {
+    if (event.target === modal) {
+        console.log('Clicked outside modal');
+        modal.style.display = 'none';
+    }
+});
+
+const selectNFTBtn = document.getElementById('selectNFTBtn');
+if (selectNFTBtn) {
+    selectNFTBtn.addEventListener('click', async () => {
+        console.log('Select NFT button clicked');
+        if (!account) {
+            alert('Connect wallet first');
+            return;
+        }
+        try {
+            showLoadingScreen();
+            const balance = await nftContract.balanceOf(account);
+            const nftGrid = document.getElementById('nftGrid');
+            if (nftGrid) {
+                nftGrid.innerHTML = '';
+                selectedTokenIds = [];
+                if (balance == 0) {
+                    nftGrid.innerHTML = '<p class="text-xs text-center opacity-70">No NFTs available to stake</p>';
+                } else {
+                    for (let i = 0; i < balance; i++) {
+                        const tokenId = await nftContract.tokenOfOwnerByIndex(account, i);
+                        if (stakedTokenIds.includes(tokenId.toString())) continue;
+                        let uri = await nftContract.tokenURI(tokenId);
+                        if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+                        try {
+                            const response = await fetch(uri);
+                            const metadata = await response.json();
+                            const image = metadata.image.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + metadata.image.slice(7) : metadata.image;
+                            const div = document.createElement('div');
+                            div.className = 'p-1';
+                            div.innerHTML = `
+                                <img src="${image}" alt="NFT #${tokenId}" class="w-full h-auto rounded border border-orange-500">
+                                <p class="text-xs text-center">#${tokenId}</p>
+                                <input type="checkbox" class="select-checkbox mx-auto block" data-id="${tokenId}">
+                            `;
+                            nftGrid.appendChild(div);
+                        } catch (error) {
+                            console.error(`Failed to fetch metadata for token ${tokenId}:`, error);
+                        }
+                    }
+                }
+                modal.style.display = 'block';
+                const selectMultipleBtn = document.getElementById('selectMultipleBtn');
+                if (selectMultipleBtn) {
+                    selectMultipleBtn.addEventListener('click', selectMultiple, { once: true });
+                } else {
+                    console.error('Select Multiple button not found');
+                }
+            } else {
+                console.error('NFT grid not found');
+            }
+        } catch (error) {
+            console.error('Error loading NFTs:', error);
+            alert('Error loading NFTs: ' + error.message);
+        } finally {
+            hideLoadingScreen();
+        }
+    });
+} else {
+    console.error('Select NFT button not found');
+}
 
 function selectMultiple() {
     selectedTokenIds = Array.from(document.querySelectorAll('.select-checkbox:checked')).map(checkbox => checkbox.dataset.id);
@@ -187,34 +281,44 @@ function selectMultiple() {
     document.getElementById('dropOffBtn').disabled = selectedTokenIds.length === 0;
 }
 
-document.getElementById('dropOffBtn').addEventListener('click', async () => {
-    if (selectedTokenIds.length === 0) return alert('Select NFTs first');
-    const button = document.getElementById('dropOffBtn');
-    button.disabled = true;
-    button.innerText = 'Processing...';
-    showLoadingScreen();
-    try {
-        for (let tokenId of selectedTokenIds) {
-            await nftContract.approve(daycareAddress, tokenId);
+const dropOffBtn = document.getElementById('dropOffBtn');
+if (dropOffBtn) {
+    dropOffBtn.addEventListener('click', async () => {
+        console.log('Drop Off button clicked');
+        if (selectedTokenIds.length === 0) {
+            alert('Select NFTs first');
+            return;
         }
-        const tx = await daycareContract.dropOffMultiple(selectedTokenIds);
-        await tx.wait();
-        alert('Staked successfully!');
-        selectedTokenIds = [];
-        document.getElementById('selectedNFTs').innerText = 'No NFTs selected';
-        document.getElementById('dropOffBtn').disabled = true;
-        socket.emit('fetchUserDaycare', { account });
-    } catch (error) {
-        alert('Staking failed: ' + error.message);
-    } finally {
-        button.disabled = false;
-        button.innerText = '🎰 Stake Selected NFTs';
-        hideLoadingScreen();
-    }
-});
+        const button = document.getElementById('dropOffBtn');
+        button.disabled = true;
+        button.innerText = 'Processing...';
+        showLoadingScreen();
+        try {
+            for (let tokenId of selectedTokenIds) {
+                await nftContract.approve(daycareAddress, tokenId);
+            }
+            const tx = await daycareContract.dropOffMultiple(selectedTokenIds);
+            await tx.wait();
+            alert('Staked successfully!');
+            selectedTokenIds = [];
+            document.getElementById('selectedNFTs').innerText = 'No NFTs selected';
+            document.getElementById('dropOffBtn').disabled = true;
+            socket.emit('fetchUserDaycare', { account });
+        } catch (error) {
+            console.error('Staking error:', error);
+            alert('Staking failed: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.innerText = '🎰 Stake Selected NFTs';
+            hideLoadingScreen();
+        }
+    });
+} else {
+    console.error('Drop Off button not found');
+}
 
-// Claim points (per index)
 async function claimPoints(e) {
+    console.log('Claim button clicked');
     const index = e.target.dataset.index;
     const button = e.target;
     button.disabled = true;
@@ -226,6 +330,7 @@ async function claimPoints(e) {
         alert('Claimed!');
         socket.emit('fetchUserDaycare', { account });
     } catch (error) {
+        console.error('Claim error:', error);
         alert('Claim failed: ' + error.message);
     } finally {
         button.disabled = false;
@@ -234,8 +339,8 @@ async function claimPoints(e) {
     }
 }
 
-// Pick up (per index)
 async function pickUp(e) {
+    console.log('Pick Up button clicked');
     const index = e.target.dataset.index;
     const button = e.target;
     button.disabled = true;
@@ -247,6 +352,7 @@ async function pickUp(e) {
         alert('Picked up!');
         socket.emit('fetchUserDaycare', { account });
     } catch (error) {
+        console.error('Pick up error:', error);
         alert('Pick up failed: ' + error.message);
     } finally {
         button.disabled = false;
@@ -255,69 +361,90 @@ async function pickUp(e) {
     }
 }
 
-// Claim all
-document.getElementById('claimAllButton').addEventListener('click', async () => {
-    if (stakedCount === 0) return;
-    const button = document.getElementById('claimAllButton');
-    button.disabled = true;
-    button.innerText = 'Processing...';
-    showLoadingScreen();
-    try {
-        const indices = Array.from({length: stakedCount}, (_, i) => i);
-        const tx = await daycareContract.claimMultiple(indices);
-        await tx.wait();
-        alert('Claimed all!');
-        socket.emit('fetchUserDaycare', { account });
-    } catch (error) {
-        alert('Claim all failed: ' + error.message);
-    } finally {
-        button.disabled = false;
-        button.innerText = 'Claim All';
-        hideLoadingScreen();
-    }
-});
+const claimAllButton = document.getElementById('claimAllButton');
+if (claimAllButton) {
+    claimAllButton.addEventListener('click', async () => {
+        console.log('Claim All button clicked');
+        if (stakedCount === 0) return;
+        const button = document.getElementById('claimAllButton');
+        button.disabled = true;
+        button.innerText = 'Processing...';
+        showLoadingScreen();
+        try {
+            const indices = Array.from({length: stakedCount}, (_, i) => i);
+            const tx = await daycareContract.claimMultiple(indices);
+            await tx.wait();
+            alert('Claimed all!');
+            socket.emit('fetchUserDaycare', { account });
+        } catch (error) {
+            console.error('Claim all error:', error);
+            alert('Claim all failed: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.innerText = 'Claim All';
+            hideLoadingScreen();
+        }
+    });
+} else {
+    console.error('Claim All button not found');
+}
 
-// Pick up all
-document.getElementById('pickUpAllButton').addEventListener('click', async () => {
-    if (stakedCount === 0) return;
-    const button = document.getElementById('pickUpAllButton');
-    button.disabled = true;
-    button.innerText = 'Processing...';
-    showLoadingScreen();
-    try {
-        const indices = Array.from({length: stakedCount}, (_, i) => i);
-        const tx = await daycareContract.pickUpMultiple(indices);
-        await tx.wait();
-        alert('Picked up all!');
-        socket.emit('fetchUserDaycare', { account });
-    } catch (error) {
-        alert('Pick up all failed: ' + error.message);
-    } finally {
-        button.disabled = false;
-        button.innerText = 'Pick Up All';
-        hideLoadingScreen();
-    }
-});
+const pickUpAllButton = document.getElementById('pickUpAllButton');
+if (pickUpAllButton) {
+    pickUpAllButton.addEventListener('click', async () => {
+        console.log('Pick Up All button clicked');
+        if (stakedCount === 0) return;
+        const button = document.getElementById('pickUpAllButton');
+        button.disabled = true;
+        button.innerText = 'Processing...';
+        showLoadingScreen();
+        try {
+            const indices = Array.from({length: stakedCount}, (_, i) => i);
+            const tx = await daycareContract.pickUpMultiple(indices);
+            await tx.wait();
+            alert('Picked up all!');
+            socket.emit('fetchUserDaycare', { account });
+        } catch (error) {
+            console.error('Pick up all error:', error);
+            alert('Pick up all failed: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.innerText = 'Pick Up All';
+            hideLoadingScreen();
+        }
+    });
+} else {
+    console.error('Pick Up All button not found');
+}
 
-// Burn points
-document.getElementById('burnBtn').addEventListener('click', async () => {
-    const amount = document.getElementById('burnAmount').value;
-    if (!amount || amount <= 0) return alert('Enter valid amount');
-    const button = document.getElementById('burnBtn');
-    button.disabled = true;
-    button.innerText = 'Processing...';
-    showLoadingScreen();
-    try {
-        const tx = await daycareContract.burnPoints(amount);
-        await tx.wait();
-        alert('Burned!');
-        socket.emit('fetchUserDaycare', { account });
-        document.getElementById('burnAmount').value = '';
-    } catch (error) {
-        alert('Burn failed: ' + error.message);
-    } finally {
-        button.disabled = false;
-        button.innerText = 'Burn Points';
-        hideLoadingScreen();
-    }
-});
+const burnBtn = document.getElementById('burnBtn');
+if (burnBtn) {
+    burnBtn.addEventListener('click', async () => {
+        console.log('Burn button clicked');
+        const amount = document.getElementById('burnAmount').value;
+        if (!amount || amount <= 0) {
+            alert('Enter valid amount');
+            return;
+        }
+        const button = document.getElementById('burnBtn');
+        button.disabled = true;
+        button.innerText = 'Processing...';
+        showLoadingScreen();
+        try {
+            const tx = await daycareContract.burnPoints(amount);
+            await tx.wait();
+            alert('Burned!');
+            socket.emit('fetchUserDaycare', { account });
+            document.getElementById('burnAmount').value = '';
+        } catch (error) {
+            console.error('Burn error:', error);
+            alert('Burn failed: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.innerText = 'Burn Points';
+            hideLoadingScreen();
+        }
+    });
+} else {
+    console.error('Burn button not found');
+}
