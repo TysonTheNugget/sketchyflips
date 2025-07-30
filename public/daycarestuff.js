@@ -1,7 +1,7 @@
 // Constants
 const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
 const daycareAddress = '0xd32247484111569930a0b9c7e669e8E108392496';
-const backendUrl = 'https://sketchyflipback.onrender.com'; // Replace with your Render URL
+const backendUrl = 'https://sketchyflipback.onrender.com';
 const chainId = '0xaad'; // 2741 in hex for Abstract chain
 
 const nftABI = [
@@ -20,7 +20,15 @@ let selectedTokenIds = [];
 let stakedTokenIds = [];
 let stakedCount = 0;
 
-// Event listeners from original
+// Loading screen functions
+function showLoadingScreen() {
+    document.getElementById('loadingScreen').classList.remove('hidden');
+}
+function hideLoadingScreen() {
+    document.getElementById('loadingScreen').classList.add('hidden');
+}
+
+// Event listeners
 document.getElementById('stakeButton').addEventListener('click', () => {
     document.getElementById('mainMenu').classList.add('hidden');
     document.getElementById('gameInterface').classList.add('hidden');
@@ -32,15 +40,19 @@ document.getElementById('backButton').addEventListener('click', () => {
     document.getElementById('mainMenu').classList.remove('hidden');
 });
 
-// Connect wallet
+document.getElementById('homeButton').addEventListener('click', () => {
+    window.location.href = 'index.html';
+});
+
 document.getElementById('connectWallet').addEventListener('click', async () => {
     if (window.ethereum) {
         try {
+            showLoadingScreen();
             await window.ethereum.request({ method: 'eth_requestAccounts' });
             provider = new ethers.providers.Web3Provider(window.ethereum);
             signer = provider.getSigner();
             account = await signer.getAddress();
-            document.getElementById('accountDisplay').innerText = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
+            document.getElementById('account').innerText = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
 
             // Check/switch chain
             const currentChain = await provider.getNetwork();
@@ -66,9 +78,12 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
 
             // Fetch user data
             socket.emit('fetchUserDaycare', { account });
-
+            document.getElementById('selectNFTBtn').disabled = false;
+            document.getElementById('burnBtn').disabled = false;
         } catch (error) {
             alert('Wallet connection failed: ' + error.message);
+        } finally {
+            hideLoadingScreen();
         }
     } else {
         alert('Please install MetaMask!');
@@ -77,93 +92,108 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
 
 // Socket listeners
 socket.on('leaderboardUpdate', (data) => {
-    const tableBody = document.getElementById('leaderboardTable');
+    const tableBody = document.getElementById('leaderboardBody');
     tableBody.innerHTML = '';
     data.forEach((entry, index) => {
-        const row = `<tr><td>${index + 1}</td><td>${entry.address.slice(0,6)}...${entry.address.slice(-4)}</td><td>${entry.points}</td></tr>`;
+        const row = `<tr><td class="border border-orange-500 p-1">${index + 1}</td><td class="border border-orange-500 p-1">${entry.address.slice(0,6)}...${entry.address.slice(-4)}</td><td class="border border-orange-500 p-1">${entry.points}</td></tr>`;
         tableBody.innerHTML += row;
     });
 });
 
 socket.on('userDaycareUpdate', (data) => {
     document.getElementById('totalPoints').innerText = `Total Points: ${data.points}`;
-    const stakedList = document.getElementById('stakedList');
+    const stakedList = document.getElementById('stakedNFTs');
     stakedList.innerHTML = '';
     stakedTokenIds = [];
     stakedCount = data.daycares.length;
     data.daycares.forEach((d, index) => {
         stakedTokenIds.push(d.tokenId);
-        const item = `<div>
-            <img src="${d.image}" alt="NFT ${d.tokenId}" width="100">
-            <p>Token ID: ${d.tokenId}</p>
-            <p>Pending Points: ${d.pending}</p>
-            <button onclick="claimPoints(${index})">Claim</button>
-            <button onclick="pickUp(${index})">Pick Up</button>
+        const item = `<div class="p-1 flex justify-between items-center border-b border-orange-200 last:border-b-0">
+            <div class="flex items-center">
+                <img src="${d.image}" alt="NFT ${d.tokenId}" class="w-10 h-10 mr-2 rounded shadow border border-orange-500">
+                <div>
+                    <span class="text-xs font-bold">NFT #${d.tokenId}</span><br>
+                    <span class="text-xs opacity-70">Pending: ${d.pending} points</span>
+                </div>
+            </div>
+            <div class="flex gap-1">
+                <button class="neon-button text-xs px-2 py-1 claim-btn" data-index="${index}" ${d.pending == 0 ? 'disabled' : ''}>Claim</button>
+                <button class="neon-button text-xs px-2 py-1 pickup-btn" data-index="${index}">Pick Up</button>
+            </div>
         </div>`;
         stakedList.innerHTML += item;
     });
     document.getElementById('claimAllButton').style.display = stakedCount > 0 ? 'block' : 'none';
     document.getElementById('pickUpAllButton').style.display = stakedCount > 0 ? 'block' : 'none';
+    document.querySelectorAll('.claim-btn').forEach(btn => btn.addEventListener('click', claimPoints));
+    document.querySelectorAll('.pickup-btn').forEach(btn => btn.addEventListener('click', pickUp));
 });
 
 // Refresh leaderboard
 document.getElementById('refreshLeaderboard').addEventListener('click', () => {
-    // Assuming backend has a 'refreshLeaderboard' event to trigger fetch
     socket.emit('refreshLeaderboard');
-    // Or just wait for next poll
 });
 
 // Select NFTs modal
 const modal = document.getElementById('nftModal');
 const closeModal = document.getElementsByClassName('close')[0];
 closeModal.onclick = () => { modal.style.display = 'none'; };
+window.onclick = (event) => {
+    if (event.target === modal) modal.style.display = 'none';
+};
 
-document.getElementById('selectNFTsButton').addEventListener('click', async () => {
+document.getElementById('selectNFTBtn').addEventListener('click', async () => {
     if (!account) return alert('Connect wallet first');
     try {
+        showLoadingScreen();
         const balance = await nftContract.balanceOf(account);
-        const nftList = document.getElementById('nftList');
-        nftList.innerHTML = '';
+        const nftGrid = document.getElementById('nftGrid');
+        nftGrid.innerHTML = '';
         selectedTokenIds = [];
-        for (let i = 0; i < balance; i++) {
-            const tokenId = await nftContract.tokenOfOwnerByIndex(account, i);
-            if (stakedTokenIds.includes(tokenId.toString())) continue; // Skip staked
-            let uri = await nftContract.tokenURI(tokenId);
-            if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
-            const response = await fetch(uri);
-            const metadata = await response.json();
-            const image = metadata.image.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + metadata.image.slice(7) : metadata.image;
-            const checkbox = `<input type="checkbox" value="${tokenId}" onchange="toggleSelect(${tokenId})">
-                <img src="${image}" alt="NFT ${tokenId}" width="50"> Token ${tokenId}<br>`;
-            nftList.innerHTML += checkbox;
+        if (balance == 0) {
+            nftGrid.innerHTML = '<p class="text-xs text-center opacity-70">No NFTs available to stake</p>';
+        } else {
+            for (let i = 0; i < balance; i++) {
+                const tokenId = await nftContract.tokenOfOwnerByIndex(account, i);
+                if (stakedTokenIds.includes(tokenId.toString())) continue;
+                let uri = await nftContract.tokenURI(tokenId);
+                if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+                const response = await fetch(uri);
+                const metadata = await response.json();
+                const image = metadata.image.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + metadata.image.slice(7) : metadata.image;
+                const div = document.createElement('div');
+                div.className = 'p-1';
+                div.innerHTML = `
+                    <img src="${image}" alt="NFT #${tokenId}" class="w-full h-auto rounded border border-orange-500">
+                    <p class="text-xs text-center">#${tokenId}</p>
+                    <input type="checkbox" class="select-checkbox mx-auto block" data-id="${tokenId}">
+                `;
+                nftGrid.appendChild(div);
+            }
         }
         modal.style.display = 'block';
+        document.getElementById('selectMultipleBtn').addEventListener('click', selectMultiple, { once: true });
     } catch (error) {
         alert('Error loading NFTs: ' + error.message);
+    } finally {
+        hideLoadingScreen();
     }
 });
 
-function toggleSelect(tokenId) {
-    if (selectedTokenIds.includes(tokenId.toString())) {
-        selectedTokenIds = selectedTokenIds.filter(id => id !== tokenId.toString());
-    } else {
-        selectedTokenIds.push(tokenId.toString());
-    }
-    document.getElementById('selectedNFTs').innerText = `Selected: ${selectedTokenIds.length} NFTs`;
+function selectMultiple() {
+    selectedTokenIds = Array.from(document.querySelectorAll('.select-checkbox:checked')).map(checkbox => checkbox.dataset.id);
+    document.getElementById('nftModal').style.display = 'none';
+    document.getElementById('selectedNFTs').textContent = selectedTokenIds.length > 0 ? `Selected: ${selectedTokenIds.join(', ')}` : 'No NFTs selected';
+    document.getElementById('dropOffBtn').disabled = selectedTokenIds.length === 0;
 }
 
-document.getElementById('confirmSelection').addEventListener('click', () => {
-    modal.style.display = 'none';
-});
-
-// Stake selected
-document.getElementById('stakeSelectedButton').addEventListener('click', async () => {
+document.getElementById('dropOffBtn').addEventListener('click', async () => {
     if (selectedTokenIds.length === 0) return alert('Select NFTs first');
-    const button = document.getElementById('stakeSelectedButton');
+    const button = document.getElementById('dropOffBtn');
     button.disabled = true;
     button.innerText = 'Processing...';
+    showLoadingScreen();
     try {
-        // Approve all selected to daycare
         for (let tokenId of selectedTokenIds) {
             await nftContract.approve(daycareAddress, tokenId);
         }
@@ -172,20 +202,24 @@ document.getElementById('stakeSelectedButton').addEventListener('click', async (
         alert('Staked successfully!');
         selectedTokenIds = [];
         document.getElementById('selectedNFTs').innerText = 'No NFTs selected';
-        socket.emit('fetchUserDaycare', { account }); // Refresh
+        document.getElementById('dropOffBtn').disabled = true;
+        socket.emit('fetchUserDaycare', { account });
     } catch (error) {
         alert('Staking failed: ' + error.message);
     } finally {
         button.disabled = false;
         button.innerText = '🎰 Stake Selected NFTs';
+        hideLoadingScreen();
     }
 });
 
 // Claim points (per index)
-async function claimPoints(index) {
-    const button = event.target;
+async function claimPoints(e) {
+    const index = e.target.dataset.index;
+    const button = e.target;
     button.disabled = true;
     button.innerText = 'Processing...';
+    showLoadingScreen();
     try {
         const tx = await daycareContract.claimPoints(index);
         await tx.wait();
@@ -196,14 +230,17 @@ async function claimPoints(index) {
     } finally {
         button.disabled = false;
         button.innerText = 'Claim';
+        hideLoadingScreen();
     }
 }
 
 // Pick up (per index)
-async function pickUp(index) {
-    const button = event.target;
+async function pickUp(e) {
+    const index = e.target.dataset.index;
+    const button = e.target;
     button.disabled = true;
     button.innerText = 'Processing...';
+    showLoadingScreen();
     try {
         const tx = await daycareContract.pickUp(index);
         await tx.wait();
@@ -214,6 +251,7 @@ async function pickUp(index) {
     } finally {
         button.disabled = false;
         button.innerText = 'Pick Up';
+        hideLoadingScreen();
     }
 }
 
@@ -223,6 +261,7 @@ document.getElementById('claimAllButton').addEventListener('click', async () => 
     const button = document.getElementById('claimAllButton');
     button.disabled = true;
     button.innerText = 'Processing...';
+    showLoadingScreen();
     try {
         const indices = Array.from({length: stakedCount}, (_, i) => i);
         const tx = await daycareContract.claimMultiple(indices);
@@ -234,6 +273,7 @@ document.getElementById('claimAllButton').addEventListener('click', async () => 
     } finally {
         button.disabled = false;
         button.innerText = 'Claim All';
+        hideLoadingScreen();
     }
 });
 
@@ -243,6 +283,7 @@ document.getElementById('pickUpAllButton').addEventListener('click', async () =>
     const button = document.getElementById('pickUpAllButton');
     button.disabled = true;
     button.innerText = 'Processing...';
+    showLoadingScreen();
     try {
         const indices = Array.from({length: stakedCount}, (_, i) => i);
         const tx = await daycareContract.pickUpMultiple(indices);
@@ -254,25 +295,29 @@ document.getElementById('pickUpAllButton').addEventListener('click', async () =>
     } finally {
         button.disabled = false;
         button.innerText = 'Pick Up All';
+        hideLoadingScreen();
     }
 });
 
 // Burn points
-document.getElementById('burnButton').addEventListener('click', async () => {
+document.getElementById('burnBtn').addEventListener('click', async () => {
     const amount = document.getElementById('burnAmount').value;
     if (!amount || amount <= 0) return alert('Enter valid amount');
-    const button = document.getElementById('burnButton');
+    const button = document.getElementById('burnBtn');
     button.disabled = true;
     button.innerText = 'Processing...';
+    showLoadingScreen();
     try {
         const tx = await daycareContract.burnPoints(amount);
         await tx.wait();
         alert('Burned!');
         socket.emit('fetchUserDaycare', { account });
+        document.getElementById('burnAmount').value = '';
     } catch (error) {
         alert('Burn failed: ' + error.message);
     } finally {
         button.disabled = false;
         button.innerText = 'Burn Points';
+        hideLoadingScreen();
     }
 });
