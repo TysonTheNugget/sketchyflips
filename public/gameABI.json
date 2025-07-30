@@ -1,0 +1,8 @@
+[
+    "event GameCreated(uint256 gameId, address player1, uint256 tokenId1)",
+    "event GameJoined(uint256 gameId, address player2, uint256 tokenId2)",
+    "event GameResolved(uint256 gameId, address winner, uint256 tokenId1, uint256 tokenId2)",
+    "event GameCanceled(uint256 gameId)",
+    "function getOpenGames() view returns (uint256[])",
+    "function getGame(uint256 gameId) view returns (tuple(address player1, uint256 tokenId1, address player2, uint256 tokenId2, bool active, uint256 requestId, bytes data, uint256 joinTimestamp, uint256 createTimestamp))"
+]
