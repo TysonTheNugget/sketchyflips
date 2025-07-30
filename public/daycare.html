@@ -160,17 +160,34 @@
     let stakedNFTs = [];
 
     async function init() {
-      socket = io('https://sketchyflipback.onrender.com', { transports: ['websocket'] });
-      socket.on('connect', () => console.log('Connected to Socket.IO server'));
+      // Use dynamic host for Socket.IO
+      const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : 'https://sketchyflips.vercel.app';
+      socket = io(socketUrl, {
+        transports: ['websocket'],
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+      });
+
+      socket.on('connect', () => {
+        console.log('Connected to Socket.IO server');
+        if (account) socket.emit('fetchUserDaycare', { account });
+      });
       socket.on('userDaycareUpdate', updateUserDaycare);
       socket.on('leaderboardUpdate', updateLeaderboard);
+      socket.on('connect_error', (error) => {
+        console.error('Socket.IO connection error:', error);
+        if (account) fetchStakedNFTs(); // Fallback to blockchain
+      });
 
       document.getElementById("connectWallet").addEventListener("click", connectWallet);
       document.getElementById("selectNFTBtn").addEventListener("click", openNFTModal);
       document.getElementById("stakeAllBtn").addEventListener("click", stakeAll);
       document.getElementById("dropOffBtn").addEventListener("click", dropOffSelected);
       document.getElementById("claimAllBtn").addEventListener("click", claimAllPoints);
-      document.getElementById("refreshLeaderboard").addEventListener("click", () => socket.emit('refreshLeaderboard'));
+      document.getElementById("refreshLeaderboard").addEventListener("click", () => {
+        socket.emit('refreshLeaderboard');
+        loadLeaderboard(); // Fallback to blockchain
+      });
       document.getElementById("homeButton").addEventListener("click", () => window.location.href = "index.html");
       document.getElementById("burnBtn").addEventListener("click", burnPoints);
 
@@ -180,7 +197,7 @@
         if (event.target === modal) modal.style.display = 'none';
       });
 
-      socket.on('connect_error', (error) => console.error('Socket.IO connection error:', error));
+      loadLeaderboard(); // Initial leaderboard load
     }
 
     async function connectWallet() {
@@ -189,6 +206,7 @@
         return;
       }
       try {
+        toggleLoading(true, ['connectWallet']);
         provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
@@ -198,21 +216,29 @@
         daycareContract = new ethers.Contract(contractAddress, contractABI, signer);
         nftContract = new ethers.Contract(nftAddress, nftABI, signer);
 
+        await fetchUserTokens();
         socket.emit('registerAddress', { address: account });
         socket.emit('fetchUserDaycare', { account });
-        await fetchUserTokens();
-        document.getElementById("selectNFTBtn").disabled = userTokens.length === 0;
-        document.getElementById("stakeAllBtn").disabled = userTokens.length === 0;
-        document.getElementById("dropOffBtn").disabled = true;
+        // Fallback to blockchain if no Socket.IO response within 5 seconds
+        setTimeout(() => {
+          if (stakedNFTs.length === 0) {
+            console.log('No Socket.IO response, falling back to blockchain');
+            fetchStakedNFTs();
+          }
+        }, 5000);
         document.getElementById("burnBtn").disabled = false;
       } catch (error) {
+        console.error("Connection error:", error);
         alert(`Connection error: ${error.message}`);
+      } finally {
+        toggleLoading(false, ['connectWallet']);
       }
     }
 
     async function fetchUserTokens() {
       userTokens = [];
       try {
+        toggleLoading(true, ['selectNFTBtn', 'stakeAllBtn']);
         const tokens = await nftContract.tokensOfOwner(account);
         for (let id of tokens) {
           const image = await getNFTImage(id);
@@ -224,6 +250,8 @@
         console.error("Error fetching user tokens:", error);
         document.getElementById("selectNFTBtn").disabled = true;
         document.getElementById("stakeAllBtn").disabled = true;
+      } finally {
+        toggleLoading(false, ['selectNFTBtn', 'stakeAllBtn']);
       }
     }
 
@@ -240,6 +268,31 @@
       } catch (error) {
         console.error(`Error fetching image for token ${tokenId}:`, error);
         return 'https://via.placeholder.com/64';
+      }
+    }
+
+    async function fetchStakedNFTs() {
+      try {
+        toggleLoading(true, ['claimAllBtn']);
+        stakedNFTs = await daycareContract.getDaycares(account);
+        const total = await daycareContract.getTotalPoints(account);
+        const enhancedDaycares = await Promise.all(stakedNFTs.map(async (stake, i) => {
+          const pending = (await daycareContract.getPendingPoints(account, i)).toNumber();
+          const image = await getNFTImage(stake.tokenId);
+          return {
+            tokenId: stake.tokenId.toString(),
+            startTime: stake.startTime.toString(),
+            claimedPoints: stake.claimedPoints.toString(),
+            pending: pending.toString(),
+            image
+          };
+        }));
+        updateUserDaycare({ points: total.toString(), daycares: enhancedDaycares });
+      } catch (error) {
+        console.error("Error fetching staked NFTs:", error);
+        document.getElementById("stakedNFTs").innerHTML = '<p class="text-xs text-center text-red-500">Error loading staked NFTs</p>';
+      } finally {
+        toggleLoading(false, ['claimAllBtn']);
       }
     }
 
@@ -304,7 +357,9 @@
         document.getElementById("dropOffBtn").disabled = true;
         await fetchUserTokens();
         socket.emit('fetchUserDaycare', { account });
+        setTimeout(fetchStakedNFTs, 5000); // Fallback
       } catch (error) {
+        console.error("Error staking all NFTs:", error);
         alert(`Error staking all NFTs: ${error.message}`);
       } finally {
         toggleLoading(false, ['stakeAllBtn']);
@@ -326,7 +381,9 @@
         const tx = await daycareContract.claimMultiple(claimableIndices);
         await tx.wait();
         socket.emit('fetchUserDaycare', { account });
+        setTimeout(fetchStakedNFTs, 5000); // Fallback
       } catch (error) {
+        console.error("Error claiming all points:", error);
         alert(`Error claiming all points: ${error.message}`);
       } finally {
         toggleLoading(false, ['claimAllBtn']);
@@ -345,7 +402,9 @@
         const tx = await daycareContract.claimPoints(index);
         await tx.wait();
         socket.emit('fetchUserDaycare', { account });
+        setTimeout(fetchStakedNFTs, 5000); // Fallback
       } catch (error) {
+        console.error("Error claiming points:", error);
         alert(`Error claiming points: ${error.message}`);
       } finally {
         toggleLoading(false, [e.target]);
@@ -365,7 +424,9 @@
         await tx.wait();
         await fetchUserTokens();
         socket.emit('fetchUserDaycare', { account });
+        setTimeout(fetchStakedNFTs, 5000); // Fallback
       } catch (error) {
+        console.error("Error picking up NFT:", error);
         alert(`Error picking up NFT: ${error.message}`);
       } finally {
         toggleLoading(false, [e.target]);
@@ -383,8 +444,10 @@
         const tx = await daycareContract.burnPoints(amount);
         await tx.wait();
         socket.emit('fetchUserDaycare', { account });
+        setTimeout(fetchStakedNFTs, 5000); // Fallback
         document.getElementById("burnAmount").value = '';
       } catch (error) {
+        console.error("Error burning points:", error);
         alert(`Error burning points: ${error.message}`);
       } finally {
         toggleLoading(false, ['burnBtn']);
@@ -434,10 +497,23 @@
         document.getElementById("dropOffBtn").disabled = true;
         await fetchUserTokens();
         socket.emit('fetchUserDaycare', { account });
+        setTimeout(fetchStakedNFTs, 5000); // Fallback
       } catch (error) {
+        console.error("Error staking NFTs:", error);
         alert(`Error staking NFTs: ${error.message}`);
       } finally {
         toggleLoading(false, ['dropOffBtn']);
+      }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const [addresses, pointsArray] = await daycareContract.getLeaderboard();
+        const leaderboard = addresses.map((addr, i) => ({ address: addr, points: pointsArray[i].toNumber() }))
+          .sort((a, b) => b.points - a.points);
+        updateLeaderboard(leaderboard);
+      } catch (error) {
+        console.error("Error loading leaderboard:", error);
       }
     }
 
