@@ -1,10 +1,9 @@
 console.log('daycarestuff.js loaded');
 
-// Constants
 const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
 const daycareAddress = '0xd32247484111569930a0b9c7e669e8E108392496';
 const backendUrl = 'https://sketchyflipback.onrender.com';
-const chainId = '0xaad'; // 2741 in hex for Abstract chain
+const chainId = '0xaad';
 
 const nftABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -15,16 +14,13 @@ const nftABI = [
 
 const daycareABI = [{"inputs":[{"internalType":"address","name":"_nftAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"OwnableInvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"OwnableUnauthorizedAccount","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Claimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"startTime","type":"uint256"}],"name":"DroppedOff","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"PickedUp","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PointsAdded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PointsBurned","type":"event"},{"anonymous":false,"inputs":[],"name":"PointsEditingLocked","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"}],"name":"UserAdded","type":"event"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"addPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address[]","name":"users","type":"address[]"},{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"name":"addPointsBatch","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"burnPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"daycareIndices","type":"uint256[]"}],"name":"claimMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"claimPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"daycares","outputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"claimedPoints","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"dropOff","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"dropOffMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getDaycares","outputs":[{"components":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"claimedPoints","type":"uint256"}],"internalType":"struct MymilioDaycare.DaycareInfo[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getLeaderboard","outputs":[{"internalType":"address[]","name":"","type":"address[]"},{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"getPendingPoints","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getTotalPoints","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"lockPointsEditing","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"nft","outputs":[{"internalType":"contract IERC721","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"pickUp","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"daycareIndices","type":"uint256[]"}],"name":"pickUpMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"points","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pointsEditingLocked","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pointsPerDay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"userAddresses","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}];
 
-// Global variables
 let provider, signer, account, nftContract, daycareContract;
 let socket = io(backendUrl);
 let selectedTokenIds = [];
 let stakedTokenIds = [];
 let stakedCount = 0;
 
-// Initialize page
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded');
     const modal = document.getElementById('nftModal');
     if (modal) modal.style.display = 'none';
     const videoOverlay = document.getElementById('videoOverlay');
@@ -32,21 +28,67 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loadingScreen').classList.add('hidden');
 });
 
-// Loading screen functions
 function showLoadingScreen() {
     const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.classList.remove('hidden');
-    } else {
-        console.error('Loading screen element not found');
-    }
+    if (loadingScreen) loadingScreen.classList.remove('hidden');
 }
 function hideLoadingScreen() {
     const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.classList.add('hidden');
-    } else {
-        console.error('Loading screen element not found');
+    if (loadingScreen) loadingScreen.classList.add('hidden');
+}
+
+// FIX: NFT Loading now a function (not inline)
+async function loadNFTs() {
+    if (!nftContract || !account) {
+        alert("Please connect your wallet first!");
+        return;
+    }
+    try {
+        const balance = await nftContract.balanceOf(account);
+        const nftGrid = document.getElementById('nftGrid');
+        if (nftGrid) {
+            nftGrid.innerHTML = '';
+            selectedTokenIds = [];
+            if (balance == 0) {
+                nftGrid.innerHTML = '<p class="text-xs text-center opacity-70">No NFTs available to stake</p>';
+            } else {
+                for (let i = 0; i < balance; i++) {
+                    const tokenId = await nftContract.tokenOfOwnerByIndex(account, i);
+                    if (stakedTokenIds.includes(tokenId.toString())) continue;
+                    let uri = await nftContract.tokenURI(tokenId);
+                    if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+                    try {
+                        const response = await fetch(uri);
+                        const metadata = await response.json();
+                        const image = metadata.image.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + metadata.image.slice(7) : metadata.image;
+                        const div = document.createElement('div');
+                        div.className = 'p-1';
+                        div.innerHTML = `
+                            <img src="${image}" alt="NFT #${tokenId}" class="w-full h-auto rounded border border-orange-500">
+                            <p class="text-xs text-center">#${tokenId}</p>
+                            <input type="checkbox" class="select-checkbox mx-auto block" data-id="${tokenId}">
+                        `;
+                        nftGrid.appendChild(div);
+                    } catch (error) {
+                        console.error(`Failed to fetch metadata for token ${tokenId}:`, error);
+                    }
+                }
+            }
+            const modal = document.getElementById('nftModal');
+            if (modal) modal.style.display = 'block';
+            const selectMultipleBtn = document.getElementById('selectMultipleBtn');
+            if (selectMultipleBtn) {
+                selectMultipleBtn.addEventListener('click', selectMultiple, { once: true });
+            } else {
+                console.error('Select Multiple button not found');
+            }
+        } else {
+            console.error('NFT grid not found');
+        }
+    } catch (error) {
+        console.error('Error loading NFTs:', error);
+        alert('Error loading NFTs: ' + error.message);
+        throw error;
     }
 }
 
@@ -54,40 +96,30 @@ function hideLoadingScreen() {
 const stakeButton = document.getElementById('stakeButton');
 if (stakeButton) {
     stakeButton.addEventListener('click', () => {
-        console.log('Stake button clicked');
         document.getElementById('mainMenu').classList.add('hidden');
         document.getElementById('gameInterface').classList.add('hidden');
         document.getElementById('stakeContainer').classList.remove('hidden');
     });
-} else {
-    console.error('Stake button not found');
 }
 
 const backButton = document.getElementById('backButton');
 if (backButton) {
     backButton.addEventListener('click', () => {
-        console.log('Back button clicked');
         document.getElementById('stakeContainer').classList.add('hidden');
         document.getElementById('mainMenu').classList.remove('hidden');
     });
-} else {
-    console.error('Back button not found');
 }
 
 const homeButton = document.getElementById('homeButton');
 if (homeButton) {
     homeButton.addEventListener('click', () => {
-        console.log('Home button clicked');
         window.location.href = 'index.html';
     });
-} else {
-    console.error('Home button not found');
 }
 
 const connectWallet = document.getElementById('connectWallet');
 if (connectWallet) {
     connectWallet.addEventListener('click', async () => {
-        console.log('Connect Wallet clicked');
         if (window.ethereum) {
             try {
                 showLoadingScreen();
@@ -96,7 +128,6 @@ if (connectWallet) {
                 signer = provider.getSigner();
                 account = await signer.getAddress();
                 document.getElementById('account').innerText = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
-
                 const currentChain = await provider.getNetwork();
                 if (currentChain.chainId !== 2741) {
                     await window.ethereum.request({
@@ -110,7 +141,6 @@ if (connectWallet) {
                         }]
                     });
                 }
-
                 nftContract = new ethers.Contract(nftAddress, nftABI, signer);
                 daycareContract = new ethers.Contract(daycareAddress, daycareABI, signer);
                 socket.emit('registerAddress', { address: account });
@@ -118,7 +148,6 @@ if (connectWallet) {
                 document.getElementById('selectNFTBtn').disabled = false;
                 document.getElementById('burnBtn').disabled = false;
             } catch (error) {
-                console.error('Wallet connection error:', error);
                 alert(`Wallet connection failed: ${error.message || 'Unknown error'}`);
             } finally {
                 hideLoadingScreen();
@@ -127,13 +156,10 @@ if (connectWallet) {
             alert('Please install MetaMask!');
         }
     });
-} else {
-    console.error('Connect Wallet button not found');
 }
 
-// Socket listeners
+// Socket listeners (unchanged)
 socket.on('connect_error', (error) => {
-    console.error('Socket connection failed:', error);
     alert('Failed to connect to backend. Please try again later.');
 });
 
@@ -145,8 +171,6 @@ socket.on('leaderboardUpdate', (data) => {
             const row = `<tr><td class="border border-orange-500 p-1">${index + 1}</td><td class="border border-orange-500 p-1">${entry.address.slice(0,6)}...${entry.address.slice(-4)}</td><td class="border border-orange-500 p-1">${entry.points}</td></tr>`;
             tableBody.innerHTML += row;
         });
-    } else {
-        console.error('Leaderboard body not found');
     }
 });
 
@@ -181,97 +205,42 @@ socket.on('userDaycareUpdate', (data) => {
         document.getElementById('pickUpAllButton').style.display = stakedCount > 0 ? 'block' : 'none';
         document.querySelectorAll('.claim-btn').forEach(btn => btn.addEventListener('click', claimPoints));
         document.querySelectorAll('.pickup-btn').forEach(btn => btn.addEventListener('click', pickUp));
-    } else {
-        console.error('Staked NFTs list not found');
     }
 });
 
 const refreshLeaderboard = document.getElementById('refreshLeaderboard');
 if (refreshLeaderboard) {
     refreshLeaderboard.addEventListener('click', () => {
-        console.log('Refresh Leaderboard clicked');
         socket.emit('refreshLeaderboard');
     });
-} else {
-    console.error('Refresh Leaderboard button not found');
 }
 
 const modal = document.getElementById('nftModal');
 const closeModal = document.getElementsByClassName('close')[0];
 if (closeModal) {
     closeModal.addEventListener('click', () => {
-        console.log('Close modal clicked');
         modal.style.display = 'none';
     });
-} else {
-    console.error('Close modal button not found');
 }
 window.addEventListener('click', (event) => {
     if (event.target === modal) {
-        console.log('Clicked outside modal');
         modal.style.display = 'none';
     }
 });
 
+// THIS IS NOW THE BUTTON THAT CALLS THE REUSABLE FUNCTION
 const selectNFTBtn = document.getElementById('selectNFTBtn');
 if (selectNFTBtn) {
     selectNFTBtn.addEventListener('click', async () => {
-        console.log('Select NFT button clicked');
-        if (!account) {
-            alert('Connect wallet first');
-            return;
-        }
+        showLoadingScreen();
         try {
-            showLoadingScreen();
-            const balance = await nftContract.balanceOf(account);
-            const nftGrid = document.getElementById('nftGrid');
-            if (nftGrid) {
-                nftGrid.innerHTML = '';
-                selectedTokenIds = [];
-                if (balance == 0) {
-                    nftGrid.innerHTML = '<p class="text-xs text-center opacity-70">No NFTs available to stake</p>';
-                } else {
-                    for (let i = 0; i < balance; i++) {
-                        const tokenId = await nftContract.tokenOfOwnerByIndex(account, i);
-                        if (stakedTokenIds.includes(tokenId.toString())) continue;
-                        let uri = await nftContract.tokenURI(tokenId);
-                        if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
-                        try {
-                            const response = await fetch(uri);
-                            const metadata = await response.json();
-                            const image = metadata.image.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + metadata.image.slice(7) : metadata.image;
-                            const div = document.createElement('div');
-                            div.className = 'p-1';
-                            div.innerHTML = `
-                                <img src="${image}" alt="NFT #${tokenId}" class="w-full h-auto rounded border border-orange-500">
-                                <p class="text-xs text-center">#${tokenId}</p>
-                                <input type="checkbox" class="select-checkbox mx-auto block" data-id="${tokenId}">
-                            `;
-                            nftGrid.appendChild(div);
-                        } catch (error) {
-                            console.error(`Failed to fetch metadata for token ${tokenId}:`, error);
-                        }
-                    }
-                }
-                modal.style.display = 'block';
-                const selectMultipleBtn = document.getElementById('selectMultipleBtn');
-                if (selectMultipleBtn) {
-                    selectMultipleBtn.addEventListener('click', selectMultiple, { once: true });
-                } else {
-                    console.error('Select Multiple button not found');
-                }
-            } else {
-                console.error('NFT grid not found');
-            }
+            await loadNFTs();
         } catch (error) {
-            console.error('Error loading NFTs:', error);
             alert('Error loading NFTs: ' + error.message);
         } finally {
             hideLoadingScreen();
         }
     });
-} else {
-    console.error('Select NFT button not found');
 }
 
 function selectMultiple() {
@@ -284,7 +253,6 @@ function selectMultiple() {
 const dropOffBtn = document.getElementById('dropOffBtn');
 if (dropOffBtn) {
     dropOffBtn.addEventListener('click', async () => {
-        console.log('Drop Off button clicked');
         if (selectedTokenIds.length === 0) {
             alert('Select NFTs first');
             return;
@@ -305,7 +273,6 @@ if (dropOffBtn) {
             document.getElementById('dropOffBtn').disabled = true;
             socket.emit('fetchUserDaycare', { account });
         } catch (error) {
-            console.error('Staking error:', error);
             alert('Staking failed: ' + error.message);
         } finally {
             button.disabled = false;
@@ -313,12 +280,9 @@ if (dropOffBtn) {
             hideLoadingScreen();
         }
     });
-} else {
-    console.error('Drop Off button not found');
 }
 
 async function claimPoints(e) {
-    console.log('Claim button clicked');
     const index = e.target.dataset.index;
     const button = e.target;
     button.disabled = true;
@@ -330,7 +294,6 @@ async function claimPoints(e) {
         alert('Claimed!');
         socket.emit('fetchUserDaycare', { account });
     } catch (error) {
-        console.error('Claim error:', error);
         alert('Claim failed: ' + error.message);
     } finally {
         button.disabled = false;
@@ -340,7 +303,6 @@ async function claimPoints(e) {
 }
 
 async function pickUp(e) {
-    console.log('Pick Up button clicked');
     const index = e.target.dataset.index;
     const button = e.target;
     button.disabled = true;
@@ -352,7 +314,6 @@ async function pickUp(e) {
         alert('Picked up!');
         socket.emit('fetchUserDaycare', { account });
     } catch (error) {
-        console.error('Pick up error:', error);
         alert('Pick up failed: ' + error.message);
     } finally {
         button.disabled = false;
@@ -364,7 +325,6 @@ async function pickUp(e) {
 const claimAllButton = document.getElementById('claimAllButton');
 if (claimAllButton) {
     claimAllButton.addEventListener('click', async () => {
-        console.log('Claim All button clicked');
         if (stakedCount === 0) return;
         const button = document.getElementById('claimAllButton');
         button.disabled = true;
@@ -377,7 +337,6 @@ if (claimAllButton) {
             alert('Claimed all!');
             socket.emit('fetchUserDaycare', { account });
         } catch (error) {
-            console.error('Claim all error:', error);
             alert('Claim all failed: ' + error.message);
         } finally {
             button.disabled = false;
@@ -385,14 +344,11 @@ if (claimAllButton) {
             hideLoadingScreen();
         }
     });
-} else {
-    console.error('Claim All button not found');
 }
 
 const pickUpAllButton = document.getElementById('pickUpAllButton');
 if (pickUpAllButton) {
     pickUpAllButton.addEventListener('click', async () => {
-        console.log('Pick Up All button clicked');
         if (stakedCount === 0) return;
         const button = document.getElementById('pickUpAllButton');
         button.disabled = true;
@@ -405,7 +361,6 @@ if (pickUpAllButton) {
             alert('Picked up all!');
             socket.emit('fetchUserDaycare', { account });
         } catch (error) {
-            console.error('Pick up all error:', error);
             alert('Pick up all failed: ' + error.message);
         } finally {
             button.disabled = false;
@@ -413,14 +368,11 @@ if (pickUpAllButton) {
             hideLoadingScreen();
         }
     });
-} else {
-    console.error('Pick Up All button not found');
 }
 
 const burnBtn = document.getElementById('burnBtn');
 if (burnBtn) {
     burnBtn.addEventListener('click', async () => {
-        console.log('Burn button clicked');
         const amount = document.getElementById('burnAmount').value;
         if (!amount || amount <= 0) {
             alert('Enter valid amount');
@@ -437,7 +389,6 @@ if (burnBtn) {
             socket.emit('fetchUserDaycare', { account });
             document.getElementById('burnAmount').value = '';
         } catch (error) {
-            console.error('Burn error:', error);
             alert('Burn failed: ' + error.message);
         } finally {
             button.disabled = false;
@@ -445,6 +396,4 @@ if (burnBtn) {
             hideLoadingScreen();
         }
     });
-} else {
-    console.error('Burn button not found');
 }
