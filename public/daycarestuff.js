@@ -7,23 +7,7 @@ let nftContract;
 const daycareAddress = '0xd32247484111569930a0b9c7e669e8E108392496';
 const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
 
-async function loadABIs() {
-    try {
-        const daycareResponse = await fetch('/abi/daycareABI.json');
-        const nftResponse = await fetch('/abi/nftABI.json');
-        if (!daycareResponse.ok || !nftResponse.ok) {
-            throw new Error('Failed to load ABI files');
-        }
-        const daycareABI = await daycareResponse.json();
-        const nftABI = await nftResponse.json();
-        return { daycareABI, nftABI };
-    } catch (error) {
-        console.error('Error loading ABIs:', error);
-        throw error;
-    }
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const connectWalletBtn = document.getElementById('connectWallet');
     const accountStatus = document.getElementById('accountStatus');
     const stakeButton = document.getElementById('stakeButton');
@@ -35,19 +19,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const refreshLeaderboard = document.getElementById('refreshLeaderboard');
 
     async function init() {
-        try {
-            const { daycareABI, nftABI } = await loadABIs();
-            if (window.ethereum) {
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                daycareContract = new ethers.Contract(daycareAddress, daycareABI, provider);
-                nftContract = new ethers.Contract(nftAddress, nftABI, provider);
-            } else {
-                console.error('Please install MetaMask!');
-                accountStatus.textContent = 'Please install MetaMask!';
-            }
-        } catch (error) {
-            console.error('Initialization failed:', error);
-            accountStatus.textContent = 'Initialization failed';
+        if (window.ethereum) {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            daycareContract = new ethers.Contract(daycareAddress, daycareABI, provider);
+            nftContract = new ethers.Contract(nftAddress, nftABI, provider);
+        } else {
+            console.error('Please install MetaMask!');
+            accountStatus.textContent = 'Please install MetaMask!';
         }
     }
 
@@ -76,12 +54,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     backButton.addEventListener('click', () => {
         document.getElementById('stakeContainer').classList.add('hidden');
-        document.getElementById('mainMenu').classList.remove('hidden');
+        document.getElementById('gameInterface').classList.remove('hidden');
     });
 
     closeStake.addEventListener('click', () => {
         document.getElementById('stakeContainer').classList.add('hidden');
-        document.getElementById('mainMenu').classList.remove('hidden');
+        document.getElementById('gameInterface').classList.remove('hidden');
     });
 
     let selectedNFTs = [];
@@ -93,18 +71,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const balance = await nftContract.balanceOf(account);
             for (let i = 0; i < balance; i++) {
                 const tokenId = await nftContract.tokenOfOwnerByIndex(account, i);
-                let image = 'https://via.placeholder.com/64';
-                try {
-                    let uri = await nftContract.tokenURI(tokenId);
-                    if (uri.startsWith('ipfs://')) uri = `https://ipfs.io/ipfs/${uri.slice(7)}`;
-                    const response = await fetch(uri);
-                    if (response.ok) {
-                        const metadata = await response.json();
-                        image = metadata.image.startsWith('ipfs://') ? `https://ipfs.io/ipfs/${metadata.image.slice(7)}` : metadata.image;
-                    }
-                } catch (error) {
-                    console.error(`Error fetching metadata for token ${tokenId}:`, error);
-                }
+                const uri = await nftContract.tokenURI(tokenId);
+                const image = uri.startsWith('ipfs://') ? `https://ipfs.io/ipfs/${uri.slice(7)}` : uri;
                 const div = document.createElement('div');
                 div.className = 'p-2 bg-gray-700 rounded cursor-pointer';
                 div.innerHTML = `<img src="${image}" alt="NFT ${tokenId}" class="w-full h-32 object-cover rounded"><p>Token ID: ${tokenId}</p>`;
@@ -135,8 +103,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!selectedNFTs.length) return alert('No NFTs selected');
         try {
             const signedContract = daycareContract.connect(signer);
-            const tx = await signedContract.dropOffMultiple(selectedNFTs);
-            await tx.wait();
+            await signedContract.dropOffMultiple(selectedNFTs);
+            await signedContract.dropOffMultiple.estimateGas(selectedNFTs);
             socket.emit('fetchUserDaycare', { account });
             selectedNFTs = [];
             document.getElementById('selectedNFTs').textContent = 'No NFTs selected';
@@ -151,8 +119,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!amount || isNaN(amount)) return alert('Invalid amount');
         try {
             const signedContract = daycareContract.connect(signer);
-            const tx = await signedContract.burnPoints(amount);
-            await tx.wait();
+            await signedContract.burnPoints(amount);
+            await signedContract.burnPoints.estimateGas(amount);
             socket.emit('fetchUserDaycare', { account });
         } catch (error) {
             console.error('Error burning points:', error);
@@ -168,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('totalPoints').textContent = data.points;
         const stakedNFTsList = document.getElementById('stakedNFTsList');
         stakedNFTsList.innerHTML = '';
-        data.daycares.forEach((daycare, index) => {
+        data.daycares.forEach(daycare => {
             const div = document.createElement('div');
             div.className = 'p-4 bg-gray-700 rounded';
             div.innerHTML = `
@@ -177,8 +145,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <p>Start Time: ${new Date(Number(daycare.startTime) * 1000).toLocaleString()}</p>
                 <p>Claimed Points: ${daycare.claimedPoints}</p>
                 <p>Pending Points: ${daycare.pending}</p>
-                <button class="claimBtn bg-blue-600 btn hover:bg-blue-700 text-white py-1 px-2 rounded mt-2" data-index="${index}">Claim Points</button>
-                <button class="pickupBtn bg-red-600 btn hover:bg-red-700 text-white py-1 px-2 rounded mt-2" data-index="${index}">Pick Up</button>
+                <button class="claimBtn bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded mt-2" data-index="${daycare.index}">Claim Points</button>
+                <button class="pickupBtn bg-red-600 hover:bg-red-700 text-white py-1 px-2 rounded mt-2" data-index="${daycare.index}">Pick Up</button>
             `;
             stakedNFTsList.appendChild(div);
         });
@@ -188,8 +156,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const index = btn.dataset.index;
                 try {
                     const signedContract = daycareContract.connect(signer);
-                    const tx = await signedContract.claimPoints(index);
-                    await tx.wait();
+                    await signedContract.claimPoints(index);
+                    await signedContract.claimPoints.estimateGas(index);
                     socket.emit('fetchUserDaycare', { account });
                 } catch (error) {
                     console.error('Error claiming points:', error);
@@ -203,8 +171,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const index = btn.dataset.index;
                 try {
                     const signedContract = daycareContract.connect(signer);
-                    const tx = await signedContract.pickUp(index);
-                    await tx.wait();
+                    await signedContract.pickUp(index);
+                    await signedContract.pickUp.estimateGas(index);
                     socket.emit('fetchUserDaycare', { account });
                 } catch (error) {
                     console.error('Error picking up NFT:', error);
@@ -228,5 +196,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    await init();
+    init();
 });
+
+// Load ABIs from external files (assumed to be served by the backend or included in the project)
+const daycareABI = [
+    {"inputs":[{"internalType":"address","name":"_nftAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+    {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"OwnableInvalidOwner","type":"error"},
+    {"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"OwnableUnauthorizedAccount","type":"error"},
+    {"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Claimed","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"startTime","type":"uint256"}],"name":"DroppedOff","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"PickedUp","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PointsAdded","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"PointsBurned","type":"event"},
+    {"anonymous":false,"inputs":[],"name":"PointsEditingLocked","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"}],"name":"UserAdded","type":"event"},
+    {"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"addPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address[]","name":"users","type":"address[]"},{"internalType":"uint256[]","name":"amounts","type":"uint256[]"}],"name":"addPointsBatch","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"burnPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256[]","name":"daycareIndices","type":"uint256[]"}],"name":"claimMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"claimPoints","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"daycares","outputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"claimedPoints","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"dropOff","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"dropOffMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getDaycares","outputs":[{"components":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"claimedPoints","type":"uint256"}],"internalType":"struct MymilioDaycare.DaycareInfo[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"getLeaderboard","outputs":[{"internalType":"address[]","name":"","type":"address[]"},{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"getPendingPoints","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getTotalPoints","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"lockPointsEditing","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"nft","outputs":[{"internalType":"contract IERC721","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"daycareIndex","type":"uint256"}],"name":"pickUp","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256[]","name":"daycareIndices","type":"uint256[]"}],"name":"pickUpMultiple","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"points","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"pointsEditingLocked","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"pointsPerDay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"userAddresses","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+];
+
+const nftABI = [
+    {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+];
