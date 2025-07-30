@@ -161,7 +161,7 @@
 
     async function init() {
       // Use dynamic host for Socket.IO
-      const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : 'https://sketchyflips.vercel.app';
+      const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : 'https://sketchyflipback.onrender.com';
       socket = io(socketUrl, {
         transports: ['websocket'],
         reconnectionAttempts: 5,
