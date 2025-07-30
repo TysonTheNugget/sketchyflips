@@ -15,11 +15,7 @@ let userTokens = [];
 let resolvedGames = [];
 
 function resolveGame(gameId) {
-    if (!account) {
-        updateStatus('Please connect your wallet to resolve this game!');
-        document.getElementById('connectWallet').click(); // Optional: prompt user
-        return;
-    }
+    console.log('Resolving game:', gameId, 'for account:', account);
     socket.emit('resolveGame', { gameId, account });
     updateStatus('Checking game resolution...');
 }
