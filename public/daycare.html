@@ -160,7 +160,7 @@
     let stakedNFTs = [];
 
     async function init() {
-      socket = io('https://sketchyflips.vercel.app', { transports: ['websocket'] });
+      socket = io('https://sketchyflipback.onrender.com', { transports: ['websocket'] });
       socket.on('connect', () => console.log('Connected to Socket.IO server'));
       socket.on('userDaycareUpdate', updateUserDaycare);
       socket.on('leaderboardUpdate', updateLeaderboard);
