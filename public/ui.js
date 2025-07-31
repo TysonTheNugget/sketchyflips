@@ -1,5 +1,8 @@
 let uiOptions = null;
 
+let isPlayingResultVideo = false;
+let lastResolvedGames, lastAccount, lastResolveGame;
+
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
     
@@ -180,6 +183,9 @@ export function updateOpenGames(games, account) {
 }
 
 export function updateResultsModal(resolvedGames, account, resolveGame) {
+    lastResolvedGames = resolvedGames;
+    lastAccount = account;
+    lastResolveGame = resolveGame;
     console.log('Updating results modal with:', resolvedGames);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
@@ -191,8 +197,10 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
     const unviewedCount = userGames.filter(game => !game.viewed[account.toLowerCase()]).length;
     if (userGames.length === 0) {
         resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No unresolved games.</li>';
-        document.getElementById('resultsButton').classList.add('hidden');
-        document.getElementById('resultsNotification').classList.add('hidden');
+        if (!isPlayingResultVideo) {
+            document.getElementById('resultsButton').classList.add('hidden');
+            document.getElementById('resultsNotification').classList.add('hidden');
+        }
         return;
     }
     document.getElementById('resultsButton').classList.remove('hidden');
@@ -224,6 +232,7 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
 
 export function playResultVideo(src, text, image1, image2) {
     console.log('Playing result video:', src, text, 'Images:', image1, image2);
+    isPlayingResultVideo = true;
     const video = document.getElementById('resultVideo');
     const overlay = document.getElementById('videoOverlay');
     const resultText = document.getElementById('resultText');
@@ -254,6 +263,10 @@ export function playResultVideo(src, text, image1, image2) {
             overlay.classList.remove('fade-out');
             animationNFTs.innerHTML = '';
         }, 800);
+        isPlayingResultVideo = false;
+        if (lastResolvedGames && lastAccount && lastResolveGame) {
+            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
+        }
     });
 
     video.onended = () => {
@@ -265,5 +278,9 @@ export function playResultVideo(src, text, image1, image2) {
             overlay.classList.remove('fade-out');
             animationNFTs.innerHTML = '';
         }, 800);
+        isPlayingResultVideo = false;
+        if (lastResolvedGames && lastAccount && lastResolveGame) {
+            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
+        }
     };
 }
