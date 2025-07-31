@@ -104,11 +104,6 @@
 
     <p id="totalPoints" class="game-card p-2 text-center text-xs font-bold">Total Points: 0</p>
 
-    <div class="game-card p-2">
-      <h2 class="text-sm text-center mb-1 font-bold">Burn Points</h2>
-      <input id="burnAmount" type="number" min="1" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs" placeholder="Amount to burn">
-      <button id="burnBtn" class="neon-button w-full mt-1" disabled>Burn Points</button>
-    </div>
 
     <div class="game-card p-2">
       <h2 class="text-sm text-center mb-1 font-bold">Leaderboard</h2>
@@ -189,7 +184,8 @@
         loadLeaderboard(); // Fallback to blockchain
       });
       document.getElementById("homeButton").addEventListener("click", () => window.location.href = "index.html");
-      document.getElementById("burnBtn").addEventListener("click", burnPoints);
+      const burnBtn = document.getElementById("burnBtn");
+        if (burnBtn) burnBtn.addEventListener("click", burnPoints);
 
       const modal = document.getElementById("nftModal");
       modal.querySelector('.close').addEventListener("click", () => modal.style.display = 'none');
@@ -226,7 +222,8 @@
             fetchStakedNFTs();
           }
         }, 5000);
-        document.getElementById("burnBtn").disabled = false;
+        const burnBtn = document.getElementById("burnBtn");
+          if (burnBtn) burnBtn.disabled = false;
       } catch (error) {
         console.error("Connection error:", error);
         alert(`Connection error: ${error.message}`);
