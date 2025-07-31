@@ -81,8 +81,11 @@
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
         <div class="relative">
             <div id="animationNFTs"></div>
-            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted></video>
-            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
+            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted autoplay>
+                <source src="" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <p id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></p>
         </div>
     </div>
 
