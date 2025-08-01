@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎮 Sketchy Dapps 🎲</title>
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="text/javascript"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
+<body>
+
     <header class="text-center mb-8">
         <h1 class="text-4xl font-bold">🎮 Sketchy Dapps 🎲</h1>
         <p class="text-lg">Fun, friends, NFTs!</p>
@@ -51,7 +52,7 @@
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2 class="text-lg font-bold mb-2">About Bet-A-Sketchy</h2>
-            <p class="text-sm">50% chance PVP to win a Sketchy by betting one, verified by Gelato.</p>
+            <p class="text-sm">50% chance PVP to win a Sketchy by betting one, verified by Gelato. </p>
             <p class="text-sm">
                 <a href="#" class="text-orange-500">ABScan</a> | 
                 <a href="#" class="text-orange-500">More Info</a>
@@ -63,7 +64,7 @@
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2 class="text-lg font-bold mb-2">Select NFT</h2>
-            <div id="nftGrid" class="mt-2"></div>
+            <div id="nftGrid" class="mt-2 grid grid-cols-3 gap-2"></div>
         </div>
     </div>
 
@@ -75,13 +76,13 @@
         </div>
     </div>
 
-    <div id="videoOverlay" class="hidden">
+    <div id="videoOverlay" class="hidden flex flex-col items-center justify-center">
         <div id="animationNFTs" class="flex"></div>
         <video id="resultVideo" class="w-64 h-64" autoplay></video>
         <p id="resultText" class="text-lg font-bold mt-2"></p>
     </div>
 
-    <div id="loadingScreen" class="hide">
+    <div id="loadingScreen" class="hide flex items-center justify-center">
         <p class="text-lg">Loading SketchyMilios...</p>
     </div>
 
@@ -93,7 +94,6 @@
     </div>
 
     <script>
-        // From abis.js
         const gameABI = [
             "function createGame(uint256 tokenId)",
             "function joinGame(uint256 gameId, uint256 tokenId)",
@@ -113,7 +113,6 @@
             "function tokenURI(uint256 tokenId) view returns (string)"
         ];
 
-        // From ui.js
         let uiOptions = null;
 
         let isPlayingResultVideo = false;
@@ -122,7 +121,6 @@
         function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
             uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
             
-            // Modal event listeners
             document.getElementById('infoButton').addEventListener('click', () => {
                 console.log('Opening info modal');
                 document.getElementById('infoModal').style.display = 'block';
@@ -283,7 +281,6 @@
                 openGamesList.appendChild(li);
             });
 
-            // Add event listeners for dynamically created buttons
             document.querySelectorAll('.join-game-btn').forEach(button => {
                 button.addEventListener('click', () => {
                     const gameId = button.getAttribute('data-game-id');
@@ -337,7 +334,6 @@
                 resultsModalList.appendChild(li);
             });
 
-            // Add event listeners for resolve buttons
             document.querySelectorAll('.resolve-game-btn').forEach(button => {
                 button.addEventListener('click', () => {
                     const gameId = button.getAttribute('data-game-id');
@@ -401,7 +397,6 @@
             };
         }
 
-        // From app.js
         const gameAddress = '0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6';
         const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
         const socket = io('https://sketchyflipback.onrender.com', {
@@ -425,7 +420,6 @@
             console.log('Resolving game:', gameId, 'for account:', account);
             updateStatus('Loading... Checking game resolution...');
             socket.emit('resolveGame', { gameId, account });
-            // Reset loading state after 30 seconds if no response
             setTimeout(() => {
                 if (isResolving) {
                     isResolving = false;
@@ -577,7 +571,6 @@
             }
         }
 
-        // Socket.IO event listeners
         socket.on('connect', () => {
             console.log('Connected to backend:', socket.id);
             if (account) {
@@ -623,20 +616,17 @@
         socket.on('gameResolution', async (data) => {
             console.log('Received gameResolution:', data);
             if (data.error) {
-                // Handle transient errors by retrying
                 if (data.error === 'Game not resolved or no winner') {
                     console.log(`Game ${data.gameId} not yet resolved, retrying...`);
                     setTimeout(() => {
                         socket.emit('fetchResolvedGames', { account });
-                    }, 3000); // Retry after 3 seconds
-                    return; // Keep loading state, don’t show error
+                    }, 3000); 
+                    return; 
                 }
-                // Definitive errors (e.g., game not found)
                 updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
                 isResolving = false;
                 return;
             }
-            // Game resolved successfully
             isResolving = false;
             const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
             updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
@@ -646,7 +636,6 @@
                 data.image1 || 'https://via.placeholder.com/64', 
                 data.image2 || 'https://via.placeholder.com/64'
             );
-            // Fetch the latest unresolved games from backend
             socket.emit('fetchResolvedGames', { account });
             await fetchUserTokens();
         });
