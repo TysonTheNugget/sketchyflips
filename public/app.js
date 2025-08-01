@@ -16,18 +16,22 @@ let resolvedGames = [];
 let isResolving = false;
 
 async function fetchNFTImage(tokenId) {
+    if (!nftContract) {
+        console.log(`nftContract not initialized for token ${tokenId}`);
+        return 'https://placehold.co/64x64';
+    }
     try {
         let uri = await nftContract.tokenURI(tokenId);
-        if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+        if (uri.startsWith('ipfs://')) uri = 'https://cloudflare-ipfs.com/ipfs/' + uri.slice(7);
         const response = await fetch(uri);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const metadata = await response.json();
         let image = metadata.image;
-        if (image && image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
-        return image || 'https://via.placeholder.com/64';
+        if (image && image.startsWith('ipfs://')) image = 'https://cloudflare-ipfs.com/ipfs/' + image.slice(7);
+        return image || 'https://placehold.co/64x64';
     } catch (error) {
         console.error(`Error fetching image for token ${tokenId}:`, error);
-        return 'https://via.placeholder.com/64';
+        return 'https://placehold.co/64x64';
     }
 }
 
