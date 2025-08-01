@@ -13,11 +13,25 @@ let provider, signer, account, gameContract, gameContractWithSigner, nftContract
 let selectedTokenId = null;
 let userTokens = [];
 let resolvedGames = [];
+let isResolving = false;
 
 function resolveGame(gameId) {
+    if (isResolving) {
+        console.log('Resolve already in progress, ignoring click for game:', gameId);
+        return;
+    }
+    isResolving = true;
     console.log('Resolving game:', gameId, 'for account:', account);
+    updateStatus('Loading... Checking game resolution...');
     socket.emit('resolveGame', { gameId, account });
-    updateStatus('Checking game resolution...');
+    // Reset loading state after 30 seconds if no response
+    setTimeout(() => {
+        if (isResolving) {
+            isResolving = false;
+            updateStatus('Resolution timed out, please try again.');
+            socket.emit('fetchResolvedGames', { account });
+        }
+    }, 30000);
 }
 
 initializeUI({ 
@@ -208,10 +222,21 @@ socket.on('resolvedGames', (games) => {
 socket.on('gameResolution', async (data) => {
     console.log('Received gameResolution:', data);
     if (data.error) {
+        // Handle transient errors by retrying
+        if (data.error === 'Game not resolved or no winner') {
+            console.log(`Game ${data.gameId} not yet resolved, retrying...`);
+            setTimeout(() => {
+                socket.emit('fetchResolvedGames', { account });
+            }, 3000); // Retry after 3 seconds
+            return; // Keep loading state, don’t show error
+        }
+        // Definitive errors (e.g., game not found)
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
+        isResolving = false;
         return;
     }
-    // Only play animation if this user triggered the resolution
+    // Game resolved successfully
+    isResolving = false;
     const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
     updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
     playResultVideo(
