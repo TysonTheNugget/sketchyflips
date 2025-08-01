@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>More Information - Coin Flip Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Override the background image from styles.css for this page */
+        body {
+            background-image: url('background3.jpg');
+        }
+        /* Additional styles specific to this info page for better readability and matching theme */
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent dark overlay */
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(255, 152, 0, 0.5); /* Orange glow to match theme */
+        }
+        h1, h2 {
+            color: #ff9800; /* Theme orange for headers */
+            text-align: center;
+        }
+        p {
+            line-height: 1.6;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            color: #ffffff;
+        }
+        .beta-warning {
+            background-color: #ffcc00;
+            color: #000000;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .risks {
+            color: #ff0000; /* Red for risks */
+        }
+        .tips {
+            background-color: rgba(255, 152, 0, 0.2);
+            padding: 10px;
+            border-radius: 5px;
+            color: #ffffff;
+        }
+        .home-button-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>More Information about Coin Flip Game</h1>
+        
+        <div class="beta-warning">
+            IMPORTANT: This game is currently in BETA! Features may change, and there could be unexpected issues. Play at your own risk.
+        </div>
+        
+        <h2>Welcome to the Coin Flip Game!</h2>
+        <p>
+            Coin Flip Game is an exciting blockchain-based game where two players stake their NFTs in a fair coin flip showdown. Powered by Gelato VRF for true randomness, the winner takes both NFTs! It's simple, thrilling, and fully on-chain.
+        </p>
+        
+        <h2>How to Play</h2>
+        <p>
+            Here's a step-by-step guide on what you need to do to get started and enjoy the game:
+        </p>
+        <ul>
+            <li><strong>Create a Game:</strong> Connect your wallet, select an NFT you own, and create a new game. Your NFT will be transferred to the contract as your stake.</li>
+            <li><strong>Join a Game:</strong> Browse open games, choose one, select your NFT, and join. Both NFTs are now staked, and randomness is automatically requested via Gelato VRF.</li>
+            <li><strong>Game Resolution:</strong> Once randomness is fulfilled, the winner is determined (50/50 chance), and both NFTs are transferred to the winner.</li>
+            <li><strong>Cancel Options:</strong> If a game isn't joined within 1 hour, the creator can cancel and retrieve their NFT. If joined but not resolved after 24 hours, either player can cancel to get their NFTs back.</li>
+            <li><strong>View Open Games:</strong> Check the list of available unjoined games to find one to join.</li>
+        </ul>
+        
+        <h2>Risks and Important Notes</h2>
+        <p class="risks">
+            While the game is designed to be fair and secure, remember:
+        </p>
+        <ul class="risks">
+            <li>You are staking real NFTs—losing means you permanently transfer ownership to the winner.</li>
+            <li>Blockchain transactions can fail due to network congestion, gas fees, or wallet issues. Always double-check before confirming.</li>
+            <li>Gelato VRF ensures randomness, but delays in fulfillment could occur (though rare).</li>
+            <li>As this is beta, bugs might exist. Test with low-value NFTs first.</li>
+            <li>No refunds or reversals—blockchain is immutable. All actions are final.</li>
+        </ul>
+        
+        <h2>Tips and Troubleshooting</h2>
+        <div class="tips">
+            <p>
+                - The contract is verified on ABScan, and VRF is provided by Gelato for transparency and fairness.<br>
+                - If you encounter errors (e.g., transaction fails or UI glitches), try force-closing MetaMask or your Web3 app and retrying.<br>
+                - Things can fail due to external factors, but the blockchain always remains true—check transaction status on ABScan.<br>
+                - For best experience, use a stable connection and ensure your wallet has enough gas.
+            </p>
+        </div>
+
+        <div class="home-button-container">
+            <a href="index.html" class="neon-button">Home</a>
+        </div>
+    </div>
+</body>
+</html>
