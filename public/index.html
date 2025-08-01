@@ -3,94 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎮 Sketchy Dapps 🎲</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="text/javascript"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Sketchy Dapps</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
-
-    <header class="text-center mb-8">
-        <h1 class="text-4xl font-bold">🎮 Sketchy Dapps 🎲</h1>
-        <p class="text-lg">Fun, friends, NFTs!</p>
-    </header>
-
-    <main class="w-full max-w-md">
-        <div id="mainMenu" class="text-center">
-            <div class="mb-4">
-                <button id="betButton" class="neon-button py-2 px-4 text-lg">
-                    Bet-A-Sketchy
-                    <span id="infoButton" class="ml-2 text-sm cursor-pointer">i</span>
-                </button>
+    <div id="mainMenu" class="space-y-4">
+        <h1 class="text-2xl font-bold">🎮 Sketchy Dapps 🎲</h1>
+        <p class="text-sm">Fun, friends, NFTs!</p>
+        <div class="space-y-2">
+            <div class="relative">
+                <button id="betButton" class="neon-button">Bet-A-Sketchy</button>
+                <button id="infoButton" class="info-button absolute top-0 right-0 -mr-2 -mt-2">i</button>
             </div>
-            <button class="neon-button py-2 px-4 text-lg opacity-50 cursor-not-allowed">Stake-A-Milio</button>
+            <button class="neon-button">Stake-A-Milio</button>
+        </div>
+    </div>
+
+    <div id="gameInterface" class="hidden space-y-4">
+        <div id="walletSection" class="space-y-2">
+            <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
+            <p id="accountInfo">Account: Not connected</p>
         </div>
 
-        <div id="gameInterface" class="hidden p-4 bg-gray-800 rounded-lg shadow-lg">
-            <div class="text-center mb-4">
-                <button id="connectWallet" class="neon-button py-2 px-4">🔌 Connect Wallet</button>
-                <p id="accountInfo" class="text-sm mt-2">Account: Not connected</p>
-            </div>
-
-            <div class="mb-4">
-                <p class="text-sm">Selected NFT: <span id="selectedNFT">Your Sketchy</span></p>
-                <button id="selectNFTBtn" class="neon-button py-1 px-2 text-sm mt-1" disabled>🎯 Select NFT</button>
-            </div>
-
-            <button id="createGameBtn" class="neon-button py-2 px-4 w-full mb-4" disabled>🎰 Create Game</button>
-
-            <div class="mb-4">
-                <p class="text-sm font-bold">🎯 Open Games</p>
-                <ul id="openGamesList" class="mt-2"></ul>
-            </div>
-
-            <p id="status" class="text-center text-sm">Status: Waiting...</p>
+        <div id="nftSelection" class="space-y-2">
+            <p id="selectedNFT">Selected NFT: Your Sketchy</p>
+            <button id="selectNFTBtn" class="neon-button">🎯 Select NFT</button>
         </div>
-    </main>
+
+        <button id="createGameBtn" class="neon-button">🎰 Create Game</button>
+
+        <div id="openGames">
+            <h2 class="text-lg font-bold">🎯 Open Games</h2>
+            <ul id="openGamesList" class="space-y-2"></ul>
+        </div>
+
+        <p id="status" class="text-sm status-pulse">Status: Waiting...</p>
+    </div>
 
     <div id="infoModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 class="text-lg font-bold mb-2">About Bet-A-Sketchy</h2>
-            <p class="text-sm">50% chance PVP to win a Sketchy by betting one, verified by Gelato. </p>
-            <p class="text-sm">
-                <a href="#" class="text-orange-500">ABScan</a> | 
-                <a href="#" class="text-orange-500">More Info</a>
+            <span class="close">×</span>
+            <h2>About Bet-A-Sketchy</h2>
+            <p>50% chance PVP to win a Sketchy by betting one, verified by Gelato.</p>
+            <p>
+                <a href="#" class="text-blue-500">ABScan</a> | 
+                <a href="#" class="text-blue-500">More Info</a>
             </p>
         </div>
     </div>
 
     <div id="nftModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 class="text-lg font-bold mb-2">Select NFT</h2>
-            <div id="nftGrid" class="mt-2 grid grid-cols-3 gap-2"></div>
+            <span class="close">×</span>
+            <h2>Select NFT</h2>
+            <div id="nftGrid" class="nft-grid"></div>
         </div>
     </div>
 
     <div id="resultsModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 class="text-lg font-bold mb-2">Game Results</h2>
-            <ul id="resultsModalList" class="mt-2"></ul>
+            <span class="close">×</span>
+            <h2>Game Results</h2>
+            <ul id="resultsModalList" class="space-y-2"></ul>
         </div>
     </div>
 
-    <div id="videoOverlay" class="hidden flex flex-col items-center justify-center">
-        <div id="animationNFTs" class="flex"></div>
-        <video id="resultVideo" class="w-64 h-64" autoplay></video>
-        <p id="resultText" class="text-lg font-bold mt-2"></p>
+    <div id="videoOverlay" class="hidden">
+        <video id="resultVideo" autoplay playsinline></video>
+        <div id="animationNFTs"></div>
+        <h2 id="resultText" class="text-4xl font-bold text-white"></h2>
     </div>
 
-    <div id="loadingScreen" class="hide flex items-center justify-center">
-        <p class="text-lg">Loading SketchyMilios...</p>
+    <div id="loadingScreen" class="hide">
+        <p id="loadingText">Loading SketchyMilios...</p>
     </div>
 
-    <div class="fixed bottom-4 right-4">
-        <button id="resultsButton" class="neon-button py-2 px-4 relative hidden">
-            Results
-            <span id="resultsNotification" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
-        </button>
+    <div id="resultsButton" class="hidden">
+        Results
+        <span id="resultsNotification" class="hidden">0</span>
     </div>
 
     <script>
@@ -121,6 +113,7 @@
         function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
             uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
             
+            // Modal event listeners
             document.getElementById('infoButton').addEventListener('click', () => {
                 console.log('Opening info modal');
                 document.getElementById('infoModal').style.display = 'block';
@@ -281,6 +274,7 @@
                 openGamesList.appendChild(li);
             });
 
+            // Add event listeners for dynamically created buttons
             document.querySelectorAll('.join-game-btn').forEach(button => {
                 button.addEventListener('click', () => {
                     const gameId = button.getAttribute('data-game-id');
@@ -334,6 +328,7 @@
                 resultsModalList.appendChild(li);
             });
 
+            // Add event listeners for resolve buttons
             document.querySelectorAll('.resolve-game-btn').forEach(button => {
                 button.addEventListener('click', () => {
                     const gameId = button.getAttribute('data-game-id');
@@ -420,6 +415,7 @@
             console.log('Resolving game:', gameId, 'for account:', account);
             updateStatus('Loading... Checking game resolution...');
             socket.emit('resolveGame', { gameId, account });
+            // Reset loading state after 30 seconds if no response
             setTimeout(() => {
                 if (isResolving) {
                     isResolving = false;
@@ -571,6 +567,7 @@
             }
         }
 
+        // Socket.IO event listeners
         socket.on('connect', () => {
             console.log('Connected to backend:', socket.id);
             if (account) {
@@ -616,17 +613,20 @@
         socket.on('gameResolution', async (data) => {
             console.log('Received gameResolution:', data);
             if (data.error) {
+                // Handle transient errors by retrying
                 if (data.error === 'Game not resolved or no winner') {
                     console.log(`Game ${data.gameId} not yet resolved, retrying...`);
                     setTimeout(() => {
                         socket.emit('fetchResolvedGames', { account });
-                    }, 3000); 
-                    return; 
+                    }, 3000); // Retry after 3 seconds
+                    return; // Keep loading state, don’t show error
                 }
+                // Definitive errors (e.g., game not found)
                 updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
                 isResolving = false;
                 return;
             }
+            // Game resolved successfully
             isResolving = false;
             const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
             updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
@@ -636,6 +636,7 @@
                 data.image1 || 'https://via.placeholder.com/64', 
                 data.image2 || 'https://via.placeholder.com/64'
             );
+            // Fetch the latest unresolved games from backend
             socket.emit('fetchResolvedGames', { account });
             await fetchUserTokens();
         });
