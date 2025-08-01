@@ -190,14 +190,13 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
     const userGames = resolvedGames.filter(game =>
-        !game.userResolved[account.toLowerCase()] &&
         (game.player1.toLowerCase() === account.toLowerCase() ||
          (game.player2 && game.player2.toLowerCase() === account.toLowerCase()))
     );
-    const unviewedCount = userGames.filter(game => !game.viewed[account.toLowerCase()]).length;
+    const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[account.toLowerCase()]).length;
     document.getElementById('resultsButton').classList.remove('hidden');
     if (userGames.length === 0) {
-        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No unresolved games.</li>';
+        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No games.</li>';
         document.getElementById('resultsNotification').classList.add('hidden');
         return;
     }
@@ -208,15 +207,25 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         document.getElementById('resultsNotification').classList.add('hidden');
     }
     userGames.forEach(game => {
-        const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() ||
-                                  (game.player2 && game.player2.toLowerCase() === account.toLowerCase()));
-        const resolveButton = isMine ? `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}">Resolve</button>` : '';
+        let buttonText = '';
+        let disabled = '';
+        if (!game.resolved) {
+            buttonText = 'Pending';
+            disabled = 'disabled';
+        } else if (!game.userResolved[account.toLowerCase()]) {
+            buttonText = 'Resolve';
+        } else {
+            buttonText = 'Replay';
+        }
+        const resolveButton = `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>`;
         const li = document.createElement('li');
         li.className = 'game-card p-2 flex justify-between items-center';
         li.innerHTML = `
             <div>
                 <div class="font-bold text-xs">Game #${game.gameId}</div>
                 <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
+                <div class="text-xs opacity-70">Created: ${new Date(Number(game.createTimestamp) * 1000).toLocaleString()}</div>
+                ${game.joinTimestamp && Number(game.joinTimestamp) > 0 ? `<div class="text-xs opacity-70">Joined: ${new Date(Number(game.joinTimestamp) * 1000).toLocaleString()}</div>` : ''}
             </div>
             ${resolveButton}`;
         resultsModalList.appendChild(li);
@@ -225,7 +234,19 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             const gameId = button.getAttribute('data-game-id');
-            resolveGame(gameId);
+            const game = getResolvedGames().find(g => g.gameId === gameId);
+            if (!game || !game.resolved) return;
+            const isReplay = game.userResolved[getAccount().toLowerCase()];
+            const win = game.winner === getAccount().toLowerCase();
+            playResultVideo(
+                win ? '/win.mp4' : '/lose.mp4',
+                win ? 'You Win!' : 'You Lose!',
+                game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
+                game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
+            );
+            if (!isReplay) {
+                socket.emit('markGameResolved', { gameId, account: getAccount() });
+            }
         });
     });
 }

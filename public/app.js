@@ -62,6 +62,7 @@ async function resolveGame(gameId) {
                 `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId1}.png`,
                 `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId2}.png`
             );
+            socket.emit('markGameResolved', { gameId, account });
             socket.emit('fetchResolvedGames', { account });
             await fetchUserTokens();
             isResolving = false;
@@ -80,7 +81,7 @@ async function resolveGame(gameId) {
             updateStatus('Resolution timed out, please try again.');
             socket.emit('fetchResolvedGames', { account });
         }
-    }, 30000);
+    }, 60000);
 }
 
 initializeUI({ 
@@ -199,14 +200,8 @@ async function fetchUserTokens(showLoading = false) {
         const tokens = await nftContract.tokensOfOwner(account);
         console.log('Tokens fetched:', tokens);
         for (let id of tokens) {
-            let uri = await nftContract.tokenURI(id);
-            if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
-            const response = await fetch(uri);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const metadata = await response.json();
-            let image = metadata.image;
-            if (image && image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
-            userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
+            const image = `https://f005.backblazeb2.com/file/sketchymilios/${id}.png`;
+            userTokens.push({ id: id.toString(), image });
         }
         console.log('User tokens loaded:', userTokens);
         document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
@@ -294,6 +289,7 @@ socket.on('gameResolution', async (data) => {
         data.image1 || 'https://via.placeholder.com/64', 
         data.image2 || 'https://via.placeholder.com/64'
     );
+    socket.emit('markGameResolved', { gameId: data.gameId, account });
     // Fetch the latest unresolved games from backend
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
