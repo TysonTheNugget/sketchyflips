@@ -14,37 +14,24 @@ let selectedTokenId = null;
 let userTokens = [];
 let resolvedGames = [];
 let isResolving = false;
-let resolveTimeouts = new Map(); // Track resolve timeouts
 
 function resolveGame(gameId) {
     if (isResolving) {
         console.log('Resolve already in progress, ignoring click for game:', gameId);
         return;
     }
-    
-    // Clear any existing timeout for this game
-    if (resolveTimeouts.has(gameId)) {
-        clearTimeout(resolveTimeouts.get(gameId));
-        resolveTimeouts.delete(gameId);
-    }
-    
     isResolving = true;
     console.log('Resolving game:', gameId, 'for account:', account);
     updateStatus('Loading... Checking game resolution...');
-    
     socket.emit('resolveGame', { gameId, account });
-    
-    // Set timeout for this specific game resolution
-    const timeoutId = setTimeout(() => {
+    // Reset loading state after 30 seconds if no response
+    setTimeout(() => {
         if (isResolving) {
-            console.log(`Resolution timed out for game ${gameId}`);
             isResolving = false;
             updateStatus('Resolution timed out, please try again.');
             socket.emit('fetchResolvedGames', { account });
         }
     }, 30000);
-    
-    resolveTimeouts.set(gameId, timeoutId);
 }
 
 initializeUI({ 
@@ -162,62 +149,24 @@ async function fetchUserTokens(showLoading = false) {
         console.log('Fetching tokens for account:', account);
         const tokens = await nftContract.tokensOfOwner(account);
         console.log('Tokens fetched:', tokens);
-        
-        // Enhanced token processing with better error handling
-        const tokenPromises = tokens.map(async (id) => {
-            try {
-                let uri = await nftContract.tokenURI(id);
-                if (uri.startsWith('ipfs://')) {
-                    uri = 'https://gateway.pinata.cloud/ipfs/' + uri.slice(7);
-                }
-                
-                console.log(`Fetching metadata for token ${id}: ${uri}`);
-                
-                const response = await fetch(uri, {
-                    timeout: 10000, // 10 second timeout
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const metadata = await response.json();
-                let image = metadata.image;
-                
-                if (image && image.startsWith('ipfs://')) {
-                    // Use reliable IPFS gateway
-                    image = 'https://gateway.pinata.cloud/ipfs/' + image.slice(7);
-                }
-                
-                return {
-                    id: id.toString(),
-                    image: image || 'https://via.placeholder.com/64?text=NFT'
-                };
-            } catch (error) {
-                console.error(`Error processing token ${id}:`, error);
-                return {
-                    id: id.toString(),
-                    image: 'https://via.placeholder.com/64?text=NFT'
-                };
-            }
-        });
-        
-        // Wait for all tokens to be processed
-        userTokens = await Promise.all(tokenPromises);
-        
+        for (let id of tokens) {
+            let uri = await nftContract.tokenURI(id);
+            if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+            const response = await fetch(uri);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const metadata = await response.json();
+            let image = metadata.image;
+            if (image && image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
+            userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
+        }
         console.log('User tokens loaded:', userTokens);
         document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
         document.getElementById('createGameBtn').disabled = userTokens.length === 0;
-        
         if (userTokens.length === 0) {
             nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs owned</p>';
         } else {
             displayNFTsInModal(userTokens);
         }
-        
         if (showLoading) hideLoadingScreen();
     } catch (error) {
         console.error('Error fetching tokens:', error);
@@ -247,10 +196,10 @@ socket.on('gameJoined', async (data) => {
         gameId: data.gameId, 
         player1: data.player1, 
         tokenId1: data.tokenId1, 
-        image1: data.image1 || 'https://via.placeholder.com/64?text=NFT1',
+        image1: data.image1,
         player2: data.player2, 
         tokenId2: data.tokenId2, 
-        image2: data.image2 || 'https://via.placeholder.com/64?text=NFT2',
+        image2: data.image2,
         resolved: false, 
         userResolved: { [account.toLowerCase()]: false }, 
         viewed: { [account.toLowerCase()]: false }
@@ -265,93 +214,50 @@ socket.on('resolvedGames', (games) => {
     resolvedGames = games.map(game => ({
         ...game,
         userResolved: game.userResolved || { [account.toLowerCase()]: false },
-        viewed: game.viewed || { [account.toLowerCase()]: false },
-        // Ensure images have fallbacks
-        image1: game.image1 || 'https://via.placeholder.com/64?text=NFT1',
-        image2: game.image2 || 'https://via.placeholder.com/64?text=NFT2'
+        viewed: game.viewed || { [account.toLowerCase()]: false }
     }));
     updateResultsModal(resolvedGames, account);
 });
 
 socket.on('gameResolution', async (data) => {
     console.log('Received gameResolution:', data);
-    
-    // Clear the timeout for this game
-    if (resolveTimeouts.has(data.gameId)) {
-        clearTimeout(resolveTimeouts.get(data.gameId));
-        resolveTimeouts.delete(data.gameId);
-    }
-    
     if (data.error) {
         // Handle transient errors by retrying
         if (data.error === 'Game not resolved or no winner') {
             console.log(`Game ${data.gameId} not yet resolved, retrying...`);
             setTimeout(() => {
-                if (account) {
-                    socket.emit('fetchResolvedGames', { account });
-                }
-            }, 3000);
-            return; // Keep loading state, don't show error
+                socket.emit('fetchResolvedGames', { account });
+            }, 3000); // Retry after 3 seconds
+            return; // Keep loading state, don’t show error
         }
         // Definitive errors (e.g., game not found)
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
         isResolving = false;
         return;
     }
-    
     // Game resolved successfully
     isResolving = false;
     const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
     updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-    
-    // Enhanced video path handling
-    let videoPath;
-    if (win) {
-        // Try multiple video sources
-        videoPath = 'https://sketchyflipback.onrender.com/win.mp4'; // Use full URL
-    } else {
-        videoPath = 'https://sketchyflipback.onrender.com/lose.mp4'; // Use full URL
-    }
-    
-    // Ensure images have proper fallbacks
-    const image1 = data.image1 || 'https://via.placeholder.com/64?text=NFT1';
-    const image2 = data.image2 || 'https://via.placeholder.com/64?text=NFT2';
-    
     playResultVideo(
-        videoPath,
+        win ? '/win.mp4' : '/lose.mp4', 
         win ? 'You Win!' : 'You Lose!', 
-        image1,
-        image2
+        data.image1 || 'https://via.placeholder.com/64', 
+        data.image2 || 'https://via.placeholder.com/64'
     );
-    
-    // Mark game as resolved in local state
-    resolvedGames = resolvedGames.map(game => 
-        game.gameId === data.gameId 
-            ? { ...game, userResolved: { ...game.userResolved, [account.toLowerCase()]: true } }
-            : game
-    );
-    
     // Fetch the latest unresolved games from backend
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
-    
-    // Emit that this game has been resolved for this user
-    socket.emit('markGameResolved', { gameId: data.gameId, account });
 });
 
 socket.on('disconnect', () => {
     console.log('Disconnected from backend');
     updateStatus('Disconnected from backend, attempting reconnect...');
-    // Clear all pending timeouts
-    resolveTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
-    resolveTimeouts.clear();
-    isResolving = false;
 });
 
 socket.on('connect_error', (error) => {
     console.error('Socket connection error:', error);
     updateStatus(`Socket connection error: ${error.message}`);
-    isResolving = false;
 });
 
 socket.on('reconnect', (attempt) => {
@@ -360,7 +266,6 @@ socket.on('reconnect', (attempt) => {
         socket.emit('registerAddress', { address: account });
     }
     updateStatus('Reconnected to backend!');
-    isResolving = false;
 });
 
 socket.on('reconnect_error', (error) => {
