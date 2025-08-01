@@ -64,6 +64,8 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
         await fetchUserTokens(true);
         updateStatus('Connected! Fetching games...');
         socket.emit('fetchResolvedGames', { account });
+        // Start polling user data
+        setInterval(pollUserData, 10000);
     } catch (error) {
         console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
@@ -84,6 +86,7 @@ document.getElementById('createGameBtn').addEventListener('click', async () => {
         const tx = await gameContractWithSigner.createGame(selectedTokenId);
         await tx.wait();
         updateStatus('Game created! Waiting for join...');
+        socket.emit('forceFetchOpenGames');  // Force backend refresh
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
@@ -107,6 +110,7 @@ window.joinGameFromList = async (gameId) => {
         const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
         await tx.wait();
         updateStatus('Joined! Waiting for result...');
+        socket.emit('forceFetchOpenGames');  // Force backend refresh
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
@@ -126,6 +130,7 @@ window.cancelUnjoinedFromList = async (gameId) => {
         const tx = await gameContractWithSigner.cancelUnjoinedGame(gameId);
         await tx.wait();
         updateStatus('Game canceled.');
+        socket.emit('forceFetchOpenGames');  // Force backend refresh
         await fetchUserTokens();
     } catch (error) {
         console.error('Error canceling unjoined game:', error);
@@ -151,12 +156,12 @@ async function fetchUserTokens(showLoading = false) {
         console.log('Tokens fetched:', tokens);
         for (let id of tokens) {
             let uri = await nftContract.tokenURI(id);
-            if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+            if (uri.startsWith('ipfs://')) uri = 'https://gateway.pinata.cloud/ipfs/' + uri.slice(7);
             const response = await fetch(uri);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const metadata = await response.json();
             let image = metadata.image;
-            if (image && image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
+            if (image && image.startsWith('ipfs://')) image = 'https://gateway.pinata.cloud/ipfs/' + image.slice(7);
             userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
         }
         console.log('User tokens loaded:', userTokens);
@@ -174,6 +179,12 @@ async function fetchUserTokens(showLoading = false) {
         nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
         if (showLoading) hideLoadingScreen();
     }
+}
+
+// New polling function for user data
+async function pollUserData() {
+    await fetchUserTokens();
+    socket.emit('fetchResolvedGames', { account });
 }
 
 // Socket.IO event listeners
@@ -265,6 +276,8 @@ socket.on('reconnect', (attempt) => {
     if (account) {
         socket.emit('registerAddress', { address: account });
     }
+    socket.emit('forceFetchOpenGames');  // Refetch on reconnect
+    pollUserData();  // Refetch user data
     updateStatus('Reconnected to backend!');
 });
 
