@@ -154,15 +154,29 @@ async function fetchUserTokens(showLoading = false) {
         console.log('Fetching tokens for account:', account);
         const tokens = await nftContract.tokensOfOwner(account);
         console.log('Tokens fetched:', tokens);
+        const gateways = ['https://gateway.pinata.cloud/ipfs/', 'https://ipfs.io/ipfs/', 'https://cloudflare-ipfs.com/ipfs/'];
         for (let id of tokens) {
-            let uri = await nftContract.tokenURI(id);
-            if (uri.startsWith('ipfs://')) uri = 'https://gateway.pinata.cloud/ipfs/' + uri.slice(7);
-            const response = await fetch(uri);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const metadata = await response.json();
-            let image = metadata.image;
-            if (image && image.startsWith('ipfs://')) image = 'https://gateway.pinata.cloud/ipfs/' + image.slice(7);
-            userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
+            let metadataFetched = false;
+            let image = 'https://via.placeholder.com/64';
+            for (let gateway of gateways) {
+                try {
+                    let uri = await nftContract.tokenURI(id);
+                    if (uri.startsWith('ipfs://')) uri = gateway + uri.slice(7);
+                    const response = await fetch(uri);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const metadata = await response.json();
+                    image = metadata.image || 'https://via.placeholder.com/64';
+                    if (image.startsWith('ipfs://')) image = gateway + image.slice(7);
+                    metadataFetched = true;
+                    break; // Success, stop trying gateways
+                } catch (innerError) {
+                    console.error(`Error fetching metadata for token ${id} on ${gateway}:`, innerError);
+                }
+            }
+            if (!metadataFetched) {
+                console.warn(`Failed to fetch metadata for token ${id} on all gateways`);
+            }
+            userTokens.push({ id: id.toString(), image });
         }
         console.log('User tokens loaded:', userTokens);
         document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
@@ -174,7 +188,7 @@ async function fetchUserTokens(showLoading = false) {
         }
         if (showLoading) hideLoadingScreen();
     } catch (error) {
-        console.error('Error fetching tokens:', error);
+        console.error('Error fetching token list:', error);
         updateStatus(`Tokens fetch error: ${error.message}`);
         nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
         if (showLoading) hideLoadingScreen();
