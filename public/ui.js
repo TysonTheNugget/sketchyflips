@@ -6,7 +6,6 @@ let lastResolvedGames, lastAccount, lastResolveGame;
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
     
-    // Modal event listeners
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
         document.getElementById('infoModal').style.display = 'block';
@@ -100,7 +99,7 @@ export function displayNFTsInModal(userTokens) {
         const div = document.createElement('div');
         div.className = 'nft-item';
         const img = document.createElement('img');
-        img.src = token.image;
+        img.src = token.image || 'https://via.placeholder.com/64';
         img.alt = `NFT #${token.id}`;
         img.style.pointerEvents = 'none';
         const p = document.createElement('p');
@@ -124,7 +123,7 @@ export function selectNFT(tokenId, image) {
     } else {
         console.error('setSelectedTokenId is not available');
     }
-    document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
+    document.getElementById('selectedNFT').innerHTML = `<img src="${image || 'https://via.placeholder.com/64'}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
     document.getElementById('nftModal').style.display = 'none';
 }
 
@@ -157,7 +156,7 @@ export function updateOpenGames(games, account) {
         li.className = 'game-card p-2 flex justify-between items-center';
         li.innerHTML = `
             <div class="flex items-center">
-                <img src="${game.image}" alt="NFT #${game.tokenId1}" class="w-8 h-8 mr-2 rounded shadow border border-orange-500">
+                <img src="${game.image || 'https://via.placeholder.com/64'}" alt="NFT #${game.tokenId1}" class="w-8 h-8 mr-2 rounded shadow border border-orange-500">
                 <div>
                     <span class="font-bold text-xs">Game #${game.id}</span><br>
                     <span class="text-xs opacity-70">NFT #${game.tokenId1} | ${game.createdAt}</span>
@@ -167,7 +166,6 @@ export function updateOpenGames(games, account) {
         openGamesList.appendChild(li);
     });
 
-    // Add event listeners for dynamically created buttons
     document.querySelectorAll('.join-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             const gameId = button.getAttribute('data-game-id');
@@ -221,7 +219,6 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         resultsModalList.appendChild(li);
     });
 
-    // Add event listeners for resolve buttons
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             const gameId = button.getAttribute('data-game-id');
