@@ -15,16 +15,65 @@ let userTokens = [];
 let resolvedGames = [];
 let isResolving = false;
 
-function resolveGame(gameId) {
+async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
+    const contract = new ethers.Contract(gameAddress, gameABI, provider);
+    const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
+    const filter = {
+        address: gameAddress,
+        topics: [
+            topic,
+            ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
+        ]
+    };
+    const logs = await provider.getLogs(filter);
+    if (logs.length > 0) {
+        const event = contract.interface.parseLog(logs[0]);
+        return {
+            winner: event.args.winner.toLowerCase(),
+            tokenId1: event.args.tokenId1.toString(),
+            tokenId2: event.args.tokenId2.toString()
+        };
+    }
+    return null;
+}
+
+async function resolveGame(gameId) {
     if (isResolving) {
         console.log('Resolve already in progress, ignoring click for game:', gameId);
         return;
     }
     isResolving = true;
-    console.log('Resolving game:', gameId, 'for account:', account);
+    updateStatus('Checking blockchain for result...');
+    try {
+        // Try to get the result directly from the blockchain (frontend, fastest!)
+        const chainResult = await getGameWinnerOnChain(
+            gameId,
+            gameAddress,
+            gameABI,
+            provider // use your ethers.js provider (NOT signer)
+        );
+        if (chainResult) {
+            // Found winner on chain!
+            const win = account && chainResult.winner === account.toLowerCase();
+            updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
+            playResultVideo(
+                win ? '/win.mp4' : '/lose.mp4',
+                win ? 'You Win!' : 'You Lose!',
+                `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId1}.png`,
+                `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId2}.png`
+            );
+            socket.emit('fetchResolvedGames', { account });
+            await fetchUserTokens();
+            isResolving = false;
+            return;
+        }
+    } catch (err) {
+        // If there's an error querying chain, fallback to backend:
+        console.error('Blockchain query error, falling back to backend:', err);
+    }
+    // Fallback: let backend handle as before
     updateStatus('Loading... Checking game resolution...');
     socket.emit('resolveGame', { gameId, account });
-    // Reset loading state after 30 seconds if no response
     setTimeout(() => {
         if (isResolving) {
             isResolving = false;
@@ -160,7 +209,7 @@ async function fetchUserTokens(showLoading = false) {
             userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
         }
         console.log('User tokens loaded:', userTokens);
-        // document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
+        document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
         document.getElementById('createGameBtn').disabled = userTokens.length === 0;
         if (userTokens.length === 0) {
             nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs owned</p>';
