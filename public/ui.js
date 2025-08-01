@@ -231,24 +231,42 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         resultsModalList.appendChild(li);
     });
     // Add event listeners for resolve buttons
-    document.querySelectorAll('.resolve-game-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            const gameId = button.getAttribute('data-game-id');
-            const game = getResolvedGames().find(g => g.gameId === gameId);
-            if (!game || !game.resolved) return;
-            const isReplay = game.userResolved[getAccount().toLowerCase()];
-            const win = game.winner === getAccount().toLowerCase();
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4',
-                win ? 'You Win!' : 'You Lose!',
-                game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
-                game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
-            );
-            if (!isReplay) {
-                socket.emit('markGameResolved', { gameId, account: getAccount() });
-            }
-        });
+
+document.querySelectorAll('.resolve-game-btn').forEach(button => {
+
+    button.addEventListener('click', () => {
+
+        const gameId = button.getAttribute('data-game-id');
+
+        const game = uiOptions.getResolvedGames().find(g => g.gameId === gameId);
+
+        if (!game || !game.resolved) return;
+
+        const isReplay = game.userResolved[uiOptions.getAccount().toLowerCase()];
+
+        const win = game.winner === uiOptions.getAccount().toLowerCase();
+
+        playResultVideo(
+
+            win ? '/win.mp4' : '/lose.mp4',
+
+            win ? 'You Win!' : 'You Lose!',
+
+            game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
+
+            game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
+
+        );
+
+        if (!isReplay) {
+
+            socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
+
+        }
+
     });
+
+});
 }
 
 export function playResultVideo(src, text, image1, image2) {
