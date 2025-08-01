@@ -1,11 +1,12 @@
 let uiOptions = null;
 
 let isPlayingResultVideo = false;
+
 let lastResolvedGames, lastAccount, lastResolveGame;
 
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
-    
+   
     // Modal event listeners
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
@@ -145,7 +146,7 @@ export function updateOpenGames(games, account) {
         const canCancel = isMine && timeUntilCancel <= 0;
         let actionButton = '';
         if (isMine) {
-            actionButton = canCancel 
+            actionButton = canCancel
                 ? `<button class="neon-button py-0.5 px-1 text-xs cancel-game-btn" data-game-id="${game.id}">Cancel</button>`
                 : `<span class="text-xs opacity-70">Cancel in ${formatTimeRemaining(timeUntilCancel)}</span>`;
         } else if (account) {
@@ -166,7 +167,6 @@ export function updateOpenGames(games, account) {
             ${actionButton}`;
         openGamesList.appendChild(li);
     });
-
     // Add event listeners for dynamically created buttons
     document.querySelectorAll('.join-game-btn').forEach(button => {
         button.addEventListener('click', () => {
@@ -189,25 +189,26 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
     console.log('Updating results modal with:', resolvedGames);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
-    const userGames = resolvedGames.filter(game => 
-        !game.userResolved[account.toLowerCase()] && 
-        (game.player1.toLowerCase() === account.toLowerCase() || 
+    const userGames = resolvedGames.filter(game =>
+        !game.userResolved[account.toLowerCase()] &&
+        (game.player1.toLowerCase() === account.toLowerCase() ||
          (game.player2 && game.player2.toLowerCase() === account.toLowerCase()))
     );
     const unviewedCount = userGames.filter(game => !game.viewed[account.toLowerCase()]).length;
+    document.getElementById('resultsButton').classList.remove('hidden');
     if (userGames.length === 0) {
         resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No unresolved games.</li>';
-        if (!isPlayingResultVideo) {
-            document.getElementById('resultsButton').classList.add('hidden');
-            document.getElementById('resultsNotification').classList.add('hidden');
-        }
+        document.getElementById('resultsNotification').classList.add('hidden');
         return;
     }
-    document.getElementById('resultsButton').classList.remove('hidden');
-    document.getElementById('resultsNotification').classList.remove('hidden');
     document.getElementById('resultsNotification').textContent = unviewedCount || '0';
+    if (unviewedCount > 0) {
+        document.getElementById('resultsNotification').classList.remove('hidden');
+    } else {
+        document.getElementById('resultsNotification').classList.add('hidden');
+    }
     userGames.forEach(game => {
-        const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() || 
+        const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() ||
                                   (game.player2 && game.player2.toLowerCase() === account.toLowerCase()));
         const resolveButton = isMine ? `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}">Resolve</button>` : '';
         const li = document.createElement('li');
@@ -220,7 +221,6 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
             ${resolveButton}`;
         resultsModalList.appendChild(li);
     });
-
     // Add event listeners for resolve buttons
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
         button.addEventListener('click', () => {
@@ -237,22 +237,18 @@ export function playResultVideo(src, text, image1, image2) {
     const overlay = document.getElementById('videoOverlay');
     const resultText = document.getElementById('resultText');
     const animationNFTs = document.getElementById('animationNFTs');
-
     const validImage1 = image1 && image1 !== 'undefined' ? image1 : 'https://via.placeholder.com/64';
     const validImage2 = image2 && image2 !== 'undefined' ? image2 : 'https://via.placeholder.com/64';
-
     animationNFTs.innerHTML = `
         <img src="${validImage1}" alt="NFT1" onerror="this.src='https://via.placeholder.com/64';">
         <img src="${validImage2}" alt="NFT2" onerror="this.src='https://via.placeholder.com/64';">
     `;
     video.src = src;
     resultText.textContent = text;
-
     overlay.classList.remove('hidden', 'fade-out');
     setTimeout(() => {
         overlay.classList.add('fade-in');
     }, 10);
-
     video.play().catch(error => {
         console.error('Error playing video:', error);
         updateStatus(`Error playing result video: ${error.message}`);
@@ -268,7 +264,6 @@ export function playResultVideo(src, text, image1, image2) {
             updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
         }
     });
-
     video.onended = () => {
         console.log('Video ended, hiding overlay');
         overlay.classList.remove('fade-in');

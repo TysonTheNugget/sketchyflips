@@ -15,7 +15,6 @@
         <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Dapps 🎲</h1>
         <p class="text-xs md:text-sm text-white">Fun, friends, NFTs!</p>
     </header>
-
     <!-- Main Menu -->
     <div id="mainMenu" class="w-full max-w-2xl p-2 flex flex-col items-center justify-center">
         <div class="flex flex-col sm:flex-row justify-center gap-2">
@@ -26,7 +25,6 @@
             <a href="daycare.html" class="neon-button">Stake-A-Milio</a>
         </div>
     </div>
-
     <!-- Game Interface -->
     <div id="gameInterface" class="hidden w-full max-w-4xl p-2 flex flex-col gap-2 h-[calc(100vh-80px)]">
         <!-- Controls -->
@@ -46,19 +44,17 @@
             <div class="game-card p-2 text-center text-xs font-bold status-pulse">Status: <span id="status">Waiting...</span></div>
         </div>
     </div>
-
     <!-- Info Modal -->
     <div id="infoModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
             <h2 class="text-lg text-center mb-2 font-bold">About Bet-A-Sketchy</h2>
-            <p class="text-center text-xs">50% chance PVP to win a Sketchy by betting one, verified by Gelato. 
-                <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">ABScan</a> | 
+            <p class="text-center text-xs">50% chance PVP to win a Sketchy by betting one, verified by Gelato.
+                <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">ABScan</a> |
                 <a href="/moreinfo.html" target="_blank" class="text-blue-500 hover:underline">More Info</a>
             </p>
         </div>
     </div>
-
     <!-- NFT Selection Modal -->
     <div id="nftModal" class="modal">
         <div class="modal-content">
@@ -67,7 +63,6 @@
             <div id="nftGrid" class="nft-grid"></div>
         </div>
     </div>
-
     <!-- Results Modal -->
     <div id="resultsModal" class="modal">
         <div class="modal-content">
@@ -76,7 +71,6 @@
             <ul id="resultsModalList" class="space-y-2"></ul>
         </div>
     </div>
-
     <!-- Video Overlay -->
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
         <div class="relative">
@@ -85,18 +79,15 @@
             <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
         </div>
     </div>
-
     <!-- Loading Screen -->
     <div id="loadingScreen" class="hide">
         <div id="loadingText">Loading SketchyMilios...</div>
     </div>
-
     <!-- Results Button -->
-    <button id="resultsButton" class="neon-button hidden">
+    <button id="resultsButton" class="neon-button">
         Results
         <span id="resultsNotification" class="hidden">0</span>
     </button>
-
     <script type="module" src="/abis.js"></script>
     <script type="module" src="/ui.js"></script>
     <script type="module" src="/app.js"></script>
