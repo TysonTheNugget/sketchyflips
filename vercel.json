@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/betasketchy", "destination": "/public/index.html" },
+    { "source": "/daycare", "destination": "/public/daycare.html" },
+    { "source": "/info", "destination": "/public/moreinfo.html" }
+  ]
+}
