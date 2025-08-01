@@ -15,26 +15,6 @@ let userTokens = [];
 let resolvedGames = [];
 let isResolving = false;
 
-async function fetchNFTImage(tokenId) {
-    if (!nftContract) {
-        console.log(`nftContract not initialized for token ${tokenId}`);
-        return 'https://placehold.co/64x64';
-    }
-    try {
-        let uri = await nftContract.tokenURI(tokenId);
-        if (uri.startsWith('ipfs://')) uri = 'https://cloudflare-ipfs.com/ipfs/' + uri.slice(7);
-        const response = await fetch(uri);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const metadata = await response.json();
-        let image = metadata.image;
-        if (image && image.startsWith('ipfs://')) image = 'https://cloudflare-ipfs.com/ipfs/' + image.slice(7);
-        return image || 'https://placehold.co/64x64';
-    } catch (error) {
-        console.error(`Error fetching image for token ${tokenId}:`, error);
-        return 'https://placehold.co/64x64';
-    }
-}
-
 function resolveGame(gameId) {
     if (isResolving) {
         console.log('Resolve already in progress, ignoring click for game:', gameId);
@@ -44,6 +24,7 @@ function resolveGame(gameId) {
     console.log('Resolving game:', gameId, 'for account:', account);
     updateStatus('Loading... Checking game resolution...');
     socket.emit('resolveGame', { gameId, account });
+    // Reset loading state after 30 seconds if no response
     setTimeout(() => {
         if (isResolving) {
             isResolving = false;
@@ -169,8 +150,14 @@ async function fetchUserTokens(showLoading = false) {
         const tokens = await nftContract.tokensOfOwner(account);
         console.log('Tokens fetched:', tokens);
         for (let id of tokens) {
-            const image = await fetchNFTImage(id);
-            userTokens.push({ id: id.toString(), image });
+            let uri = await nftContract.tokenURI(id);
+            if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+            const response = await fetch(uri);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const metadata = await response.json();
+            let image = metadata.image;
+            if (image && image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
+            userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
         }
         console.log('User tokens loaded:', userTokens);
         document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
@@ -198,27 +185,21 @@ socket.on('connect', () => {
     updateStatus('Connected to backend, waiting for games...');
 });
 
-socket.on('openGamesUpdate', async (games) => {
+socket.on('openGamesUpdate', (games) => {
     console.log('Received openGamesUpdate:', games);
-    const enrichedGames = await Promise.all(games.map(async (game) => ({
-        ...game,
-        image: await fetchNFTImage(game.tokenId1)
-    })));
-    updateOpenGames(enrichedGames, account);
+    updateOpenGames(games, account);
 });
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    const image1 = await fetchNFTImage(data.tokenId1);
-    const image2 = await fetchNFTImage(data.tokenId2);
     resolvedGames.push({ 
         gameId: data.gameId, 
         player1: data.player1, 
         tokenId1: data.tokenId1, 
-        image1,
+        image1: data.image1,
         player2: data.player2, 
         tokenId2: data.tokenId2, 
-        image2,
+        image2: data.image2,
         resolved: false, 
         userResolved: { [account.toLowerCase()]: false }, 
         viewed: { [account.toLowerCase()]: false }
@@ -228,43 +209,43 @@ socket.on('gameJoined', async (data) => {
     await fetchUserTokens();
 });
 
-socket.on('resolvedGames', async (games) => {
+socket.on('resolvedGames', (games) => {
     console.log('Received resolvedGames:', games);
-    resolvedGames = await Promise.all(games.map(async (game) => ({
+    resolvedGames = games.map(game => ({
         ...game,
-        image1: await fetchNFTImage(game.tokenId1),
-        image2: game.tokenId2 ? await fetchNFTImage(game.tokenId2) : null,
         userResolved: game.userResolved || { [account.toLowerCase()]: false },
         viewed: game.viewed || { [account.toLowerCase()]: false }
-    })));
+    }));
     updateResultsModal(resolvedGames, account);
 });
 
 socket.on('gameResolution', async (data) => {
     console.log('Received gameResolution:', data);
     if (data.error) {
+        // Handle transient errors by retrying
         if (data.error === 'Game not resolved or no winner') {
             console.log(`Game ${data.gameId} not yet resolved, retrying...`);
             setTimeout(() => {
                 socket.emit('fetchResolvedGames', { account });
-            }, 3000);
-            return;
+            }, 3000); // Retry after 3 seconds
+            return; // Keep loading state, don’t show error
         }
+        // Definitive errors (e.g., game not found)
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
         isResolving = false;
         return;
     }
+    // Game resolved successfully
     isResolving = false;
-    const image1 = await fetchNFTImage(data.tokenId1);
-    const image2 = await fetchNFTImage(data.tokenId2);
     const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
     updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
     playResultVideo(
         win ? '/win.mp4' : '/lose.mp4', 
         win ? 'You Win!' : 'You Lose!', 
-        image1, 
-        image2
+        data.image1 || 'https://via.placeholder.com/64', 
+        data.image2 || 'https://via.placeholder.com/64'
     );
+    // Fetch the latest unresolved games from backend
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
 });
