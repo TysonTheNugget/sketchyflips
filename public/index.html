@@ -3,666 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sketchy Dapps</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <title>Sketchy Flips - Arcade Playground</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-    <div id="mainMenu" class="space-y-4">
-        <h1 class="text-2xl font-bold">🎮 Sketchy Dapps 🎲</h1>
-        <p class="text-sm">Fun, friends, NFTs!</p>
-        <div class="space-y-2">
+<body class="text-black">
+    <!-- Header -->
+    <header class="w-full text-center py-2 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm">
+        <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Dapps 🎲</h1>
+        <p class="text-xs md:text-sm text-white">Fun, friends, NFTs!</p>
+    </header>
+
+    <!-- Main Menu -->
+    <div id="mainMenu" class="w-full max-w-2xl p-2 flex flex-col items-center justify-center">
+        <div class="flex flex-col sm:flex-row justify-center gap-2">
             <div class="relative">
                 <button id="betButton" class="neon-button">Bet-A-Sketchy</button>
-                <button id="infoButton" class="info-button absolute top-0 right-0 -mr-2 -mt-2">i</button>
+                <button id="infoButton" class="info-button absolute -top-1 -right-1">i</button>
             </div>
-            <button class="neon-button">Stake-A-Milio</button>
+            <a href="daycare.html" class="neon-button">Stake-A-Milio</a>
         </div>
     </div>
 
-    <div id="gameInterface" class="hidden space-y-4">
-        <div id="walletSection" class="space-y-2">
+    <!-- Game Interface -->
+    <div id="gameInterface" class="hidden w-full max-w-4xl p-2 flex flex-col gap-2 h-[calc(100vh-80px)]">
+        <!-- Controls -->
+        <div class="w-full flex flex-col gap-2">
             <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
-            <p id="accountInfo">Account: Not connected</p>
+            <p id="accountInfo" class="game-card p-1 text-center text-xs">Account: Not connected</p>
+            <div class="game-card p-2">
+                <label class="block font-bold text-xs mb-1">Selected NFT:</label>
+                <div id="selectedNFT" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs">Your Sketchy</div>
+                <button id="selectNFTBtn" disabled class="neon-button w-full mt-1">🎯 Select NFT</button>
+            </div>
+            <button id="createGameBtn" disabled class="neon-button w-full">🎰 Create Game</button>
+            <div class="game-card p-2 flex-grow">
+                <h2 class="text-sm text-center mb-1 font-bold">🎯 Open Games</h2>
+                <ul id="openGamesList" class="space-y-2 overflow-y-auto"></ul>
+            </div>
+            <div class="game-card p-2 text-center text-xs font-bold status-pulse">Status: <span id="status">Waiting...</span></div>
         </div>
-
-        <div id="nftSelection" class="space-y-2">
-            <p id="selectedNFT">Selected NFT: Your Sketchy</p>
-            <button id="selectNFTBtn" class="neon-button">🎯 Select NFT</button>
-        </div>
-
-        <button id="createGameBtn" class="neon-button">🎰 Create Game</button>
-
-        <div id="openGames">
-            <h2 class="text-lg font-bold">🎯 Open Games</h2>
-            <ul id="openGamesList" class="space-y-2"></ul>
-        </div>
-
-        <p id="status" class="text-sm status-pulse">Status: Waiting...</p>
     </div>
 
+    <!-- Info Modal -->
     <div id="infoModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2>About Bet-A-Sketchy</h2>
-            <p>50% chance PVP to win a Sketchy by betting one, verified by Gelato.</p>
-            <p>
-                <a href="#" class="text-blue-500">ABScan</a> | 
-                <a href="#" class="text-blue-500">More Info</a>
+            <h2 class="text-lg text-center mb-2 font-bold">About Bet-A-Sketchy</h2>
+            <p class="text-center text-xs">50% chance PVP to win a Sketchy by betting one, verified by Gelato. 
+                <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">ABScan</a> | 
+                <a href="/moreinfo.html" target="_blank" class="text-blue-500 hover:underline">More Info</a>
             </p>
         </div>
     </div>
 
+    <!-- NFT Selection Modal -->
     <div id="nftModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2>Select NFT</h2>
+            <h2 class="text-lg text-center mb-2 font-bold">Select NFT</h2>
             <div id="nftGrid" class="nft-grid"></div>
         </div>
     </div>
 
+    <!-- Results Modal -->
     <div id="resultsModal" class="modal">
         <div class="modal-content">
             <span class="close">×</span>
-            <h2>Game Results</h2>
+            <h2 class="text-lg text-center mb-2 font-bold">Game Results</h2>
             <ul id="resultsModalList" class="space-y-2"></ul>
         </div>
     </div>
 
-    <div id="videoOverlay" class="hidden">
-        <video id="resultVideo" autoplay playsinline></video>
-        <div id="animationNFTs"></div>
-        <h2 id="resultText" class="text-4xl font-bold text-white"></h2>
+    <!-- Video Overlay -->
+    <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
+        <div class="relative">
+            <div id="animationNFTs"></div>
+            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted></video>
+            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
+        </div>
     </div>
 
+    <!-- Loading Screen -->
     <div id="loadingScreen" class="hide">
-        <p id="loadingText">Loading SketchyMilios...</p>
+        <div id="loadingText">Loading SketchyMilios...</div>
     </div>
 
-    <div id="resultsButton" class="hidden">
+    <!-- Results Button -->
+    <button id="resultsButton" class="neon-button hidden">
         Results
         <span id="resultsNotification" class="hidden">0</span>
-    </div>
+    </button>
 
-    <script>
-        const gameABI = [
-            "function createGame(uint256 tokenId)",
-            "function joinGame(uint256 gameId, uint256 tokenId)",
-            "function getOpenGames() view returns (uint256[])",
-            "function getGame(uint256 gameId) view returns (tuple(address player1, uint256 tokenId1, address player2, uint256 tokenId2, bool active, uint256 requestId, bytes data, uint256 joinTimestamp, uint256 createTimestamp))",
-            "function cancelUnjoinedGame(uint256 gameId)",
-            "event GameCreated(uint256 gameId, address player1, uint256 tokenId1)",
-            "event GameJoined(uint256 gameId, address player2, uint256 tokenId2)",
-            "event RandomnessRequested(uint256 gameId, uint256 requestId)",
-            "event GameResolved(uint256 gameId, address winner, uint256 tokenId1, uint256 tokenId2)",
-            "event GameCanceled(uint256 gameId)"
-        ];
-
-        const nftABI = [
-            "function tokensOfOwner(address owner) view returns (uint256[])",
-            "function approve(address to, uint256 tokenId)",
-            "function tokenURI(uint256 tokenId) view returns (string)"
-        ];
-
-        let uiOptions = null;
-
-        let isPlayingResultVideo = false;
-        let lastResolvedGames, lastAccount, lastResolveGame;
-
-        function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
-            uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
-            
-            // Modal event listeners
-            document.getElementById('infoButton').addEventListener('click', () => {
-                console.log('Opening info modal');
-                document.getElementById('infoModal').style.display = 'block';
-            });
-
-            document.getElementById('betButton').addEventListener('click', () => {
-                console.log('Bet-A-Sketchy clicked, showing game interface');
-                document.getElementById('mainMenu').classList.add('hidden');
-                document.getElementById('gameInterface').classList.remove('hidden');
-            });
-
-            document.getElementById('selectNFTBtn').addEventListener('click', () => {
-                console.log('Opening NFT selection modal');
-                displayNFTsInModal(getUserTokens());
-                document.getElementById('nftModal').style.display = 'block';
-            });
-
-            document.getElementById('resultsButton').addEventListener('click', (e) => {
-                e.stopPropagation();
-                console.log('Results button clicked, opening modal');
-                updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
-                document.getElementById('resultsModal').style.display = 'block';
-            });
-
-            document.getElementById('infoModal').querySelector('.close').onclick = () => {
-                document.getElementById('infoModal').style.display = 'none';
-            };
-
-            document.getElementById('nftModal').querySelector('.close').onclick = () => {
-                document.getElementById('nftModal').style.display = 'none';
-            };
-
-            document.getElementById('resultsModal').querySelector('.close').onclick = () => {
-                console.log('Closing results modal');
-                socket.emit('markGamesViewed', { account: getAccount(), gameIds: getResolvedGames().map(g => g.gameId) });
-                document.getElementById('resultsModal').style.display = 'none';
-            };
-
-            window.onclick = (event) => {
-                if (event.target === document.getElementById('infoModal')) {
-                    document.getElementById('infoModal').style.display = 'none';
-                }
-                if (event.target === document.getElementById('nftModal')) {
-                    document.getElementById('nftModal').style.display = 'none';
-                }
-                if (event.target === document.getElementById('resultsModal')) {
-                    console.log('Clicked outside results modal');
-                    socket.emit('markGamesViewed', { account: getAccount(), gameIds: getResolvedGames().map(g => g.gameId) });
-                    document.getElementById('resultsModal').style.display = 'none';
-                }
-            };
-        }
-
-        function showLoadingScreen() {
-            console.log('Showing loading screen');
-            const loadingScreen = document.getElementById('loadingScreen');
-            loadingScreen.classList.remove('hide');
-            loadingScreen.classList.add('show');
-        }
-
-        function hideLoadingScreen() {
-            console.log('Hiding loading screen');
-            const loadingScreen = document.getElementById('loadingScreen');
-            loadingScreen.classList.remove('show');
-            loadingScreen.classList.add('hide');
-        }
-
-        function updateStatus(message) {
-            console.log('Status update:', message);
-            document.getElementById('status').textContent = message;
-        }
-
-        function formatTimeRemaining(seconds) {
-            if (seconds <= 0) return 'Now';
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-            return `${hours > 0 ? hours + 'h ' : ''}${minutes > 0 ? minutes + 'm ' : ''}${secs}s`;
-        }
-
-        function displayNFTsInModal(userTokens) {
-            console.log('Displaying NFTs in modal, count:', userTokens.length);
-            const nftGrid = document.getElementById('nftGrid');
-            nftGrid.innerHTML = '';
-            if (userTokens.length === 0) {
-                nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs available</p>';
-                return;
-            }
-            userTokens.forEach(token => {
-                console.log('Creating NFT item for token ID:', token.id);
-                const div = document.createElement('div');
-                div.className = 'nft-item';
-                const img = document.createElement('img');
-                img.src = token.image;
-                img.alt = `NFT #${token.id}`;
-                img.style.pointerEvents = 'none';
-                const p = document.createElement('p');
-                p.className = 'text-xs';
-                p.textContent = `#${token.id}`;
-                div.appendChild(img);
-                div.appendChild(p);
-                div.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    console.log('NFT clicked:', token.id);
-                    selectNFT(token.id, token.image);
-                });
-                nftGrid.appendChild(div);
-            });
-        }
-
-        function selectNFT(tokenId, image) {
-            console.log('Selecting NFT with ID:', tokenId);
-            if (uiOptions && uiOptions.setSelectedTokenId) {
-                uiOptions.setSelectedTokenId(tokenId);
-            } else {
-                console.error('setSelectedTokenId is not available');
-            }
-            document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
-            document.getElementById('nftModal').style.display = 'none';
-        }
-
-        function updateOpenGames(games, account) {
-            console.log('Updating open games list with:', games);
-            const openGamesList = document.getElementById('openGamesList');
-            openGamesList.innerHTML = '';
-            if (!games || games.length === 0) {
-                console.log('No open games to display');
-                openGamesList.innerHTML = '<li class="text-center text-xs opacity-70">No open games.</li>';
-                return;
-            }
-            games.forEach(game => {
-                console.log('Rendering game:', game.id, 'Player:', game.player1, 'Token:', game.tokenId1);
-                const isMine = account && game.player1.toLowerCase() === account.toLowerCase();
-                const currentTime = Math.floor(Date.now() / 1000);
-                const timeUntilCancel = Number(game.createTimestamp) + 3600 - currentTime;
-                const canCancel = isMine && timeUntilCancel <= 0;
-                let actionButton = '';
-                if (isMine) {
-                    actionButton = canCancel 
-                        ? `<button class="neon-button py-0.5 px-1 text-xs cancel-game-btn" data-game-id="${game.id}">Cancel</button>`
-                        : `<span class="text-xs opacity-70">Cancel in ${formatTimeRemaining(timeUntilCancel)}</span>`;
-                } else if (account) {
-                    actionButton = `<button class="neon-button py-0.5 px-1 text-xs join-game-btn" data-game-id="${game.id}">Join</button>`;
-                } else {
-                    actionButton = `<span class="text-xs opacity-70">Connect wallet to join</span>`;
-                }
-                const li = document.createElement('li');
-                li.className = 'game-card p-2 flex justify-between items-center';
-                li.innerHTML = `
-                    <div class="flex items-center">
-                        <img src="${game.image}" alt="NFT #${game.tokenId1}" class="w-8 h-8 mr-2 rounded shadow border border-orange-500">
-                        <div>
-                            <span class="font-bold text-xs">Game #${game.id}</span><br>
-                            <span class="text-xs opacity-70">NFT #${game.tokenId1} | ${game.createdAt}</span>
-                        </div>
-                    </div>
-                    ${actionButton}`;
-                openGamesList.appendChild(li);
-            });
-
-            // Add event listeners for dynamically created buttons
-            document.querySelectorAll('.join-game-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const gameId = button.getAttribute('data-game-id');
-                    window.joinGameFromList(gameId);
-                });
-            });
-            document.querySelectorAll('.cancel-game-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const gameId = button.getAttribute('data-game-id');
-                    window.cancelUnjoinedFromList(gameId);
-                });
-            });
-        }
-
-        function updateResultsModal(resolvedGames, account, resolveGame) {
-            lastResolvedGames = resolvedGames;
-            lastAccount = account;
-            lastResolveGame = resolveGame;
-            console.log('Updating results modal with:', resolvedGames);
-            const resultsModalList = document.getElementById('resultsModalList');
-            resultsModalList.innerHTML = '';
-            const userGames = resolvedGames.filter(game => 
-                !game.userResolved[account.toLowerCase()] && 
-                (game.player1.toLowerCase() === account.toLowerCase() || 
-                 (game.player2 && game.player2.toLowerCase() === account.toLowerCase()))
-            );
-            const unviewedCount = userGames.filter(game => !game.viewed[account.toLowerCase()]).length;
-            if (userGames.length === 0) {
-                resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No unresolved games.</li>';
-                if (!isPlayingResultVideo) {
-                    document.getElementById('resultsButton').classList.add('hidden');
-                    document.getElementById('resultsNotification').classList.add('hidden');
-                }
-                return;
-            }
-            document.getElementById('resultsButton').classList.remove('hidden');
-            document.getElementById('resultsNotification').classList.remove('hidden');
-            document.getElementById('resultsNotification').textContent = unviewedCount || '0';
-            userGames.forEach(game => {
-                const isMine = account && (game.player1.toLowerCase() === account.toLowerCase() || 
-                                          (game.player2 && game.player2.toLowerCase() === account.toLowerCase()));
-                const resolveButton = isMine ? `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}">Resolve</button>` : '';
-                const li = document.createElement('li');
-                li.className = 'game-card p-2 flex justify-between items-center';
-                li.innerHTML = `
-                    <div>
-                        <div class="font-bold text-xs">Game #${game.gameId}</div>
-                        <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
-                    </div>
-                    ${resolveButton}`;
-                resultsModalList.appendChild(li);
-            });
-
-            // Add event listeners for resolve buttons
-            document.querySelectorAll('.resolve-game-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const gameId = button.getAttribute('data-game-id');
-                    resolveGame(gameId);
-                });
-            });
-        }
-
-        function playResultVideo(src, text, image1, image2) {
-            console.log('Playing result video:', src, text, 'Images:', image1, image2);
-            isPlayingResultVideo = true;
-            const video = document.getElementById('resultVideo');
-            const overlay = document.getElementById('videoOverlay');
-            const resultText = document.getElementById('resultText');
-            const animationNFTs = document.getElementById('animationNFTs');
-
-            const validImage1 = image1 && image1 !== 'undefined' ? image1 : 'https://via.placeholder.com/64';
-            const validImage2 = image2 && image2 !== 'undefined' ? image2 : 'https://via.placeholder.com/64';
-
-            animationNFTs.innerHTML = `
-                <img src="${validImage1}" alt="NFT1" onerror="this.src='https://via.placeholder.com/64';">
-                <img src="${validImage2}" alt="NFT2" onerror="this.src='https://via.placeholder.com/64';">
-            `;
-            video.src = src;
-            resultText.textContent = text;
-
-            overlay.classList.remove('hidden', 'fade-out');
-            setTimeout(() => {
-                overlay.classList.add('fade-in');
-            }, 10);
-
-            video.play().catch(error => {
-                console.error('Error playing video:', error);
-                updateStatus(`Error playing result video: ${error.message}`);
-                overlay.classList.remove('fade-in');
-                overlay.classList.add('fade-out');
-                setTimeout(() => {
-                    overlay.classList.add('hidden');
-                    overlay.classList.remove('fade-out');
-                    animationNFTs.innerHTML = '';
-                }, 800);
-                isPlayingResultVideo = false;
-                if (lastResolvedGames && lastAccount && lastResolveGame) {
-                    updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-                }
-            });
-
-            video.onended = () => {
-                console.log('Video ended, hiding overlay');
-                overlay.classList.remove('fade-in');
-                overlay.classList.add('fade-out');
-                setTimeout(() => {
-                    overlay.classList.add('hidden');
-                    overlay.classList.remove('fade-out');
-                    animationNFTs.innerHTML = '';
-                }, 800);
-                isPlayingResultVideo = false;
-                if (lastResolvedGames && lastAccount && lastResolveGame) {
-                    updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-                }
-            };
-        }
-
-        const gameAddress = '0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6';
-        const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
-        const socket = io('https://sketchyflipback.onrender.com', {
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000
-        });
-
-        let provider, signer, account, gameContract, gameContractWithSigner, nftContract;
-        let selectedTokenId = null;
-        let userTokens = [];
-        let resolvedGames = [];
-        let isResolving = false;
-
-        function resolveGame(gameId) {
-            if (isResolving) {
-                console.log('Resolve already in progress, ignoring click for game:', gameId);
-                return;
-            }
-            isResolving = true;
-            console.log('Resolving game:', gameId, 'for account:', account);
-            updateStatus('Loading... Checking game resolution...');
-            socket.emit('resolveGame', { gameId, account });
-            // Reset loading state after 30 seconds if no response
-            setTimeout(() => {
-                if (isResolving) {
-                    isResolving = false;
-                    updateStatus('Resolution timed out, please try again.');
-                    socket.emit('fetchResolvedGames', { account });
-                }
-            }, 30000);
-        }
-
-        initializeUI({ 
-            socket, 
-            getAccount: () => account, 
-            getResolvedGames: () => resolvedGames, 
-            getUserTokens: () => userTokens, 
-            setSelectedTokenId: (id) => { selectedTokenId = id; },
-            resolveGame
-        });
-
-        document.getElementById('connectWallet').addEventListener('click', async () => {
-            if (!window.ethereum) {
-                updateStatus('Install MetaMask.');
-                return;
-            }
-            try {
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                await provider.send("eth_requestAccounts", []);
-                signer = provider.getSigner();
-                account = await signer.getAddress();
-                document.getElementById('accountInfo').textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
-                updateStatus('Wallet connected...');
-                
-                gameContract = new ethers.Contract(gameAddress, gameABI, provider);
-                gameContractWithSigner = gameContract.connect(signer);
-                nftContract = new ethers.Contract(nftAddress, nftABI, signer);
-                
-                socket.emit('registerAddress', { address: account });
-                await fetchUserTokens(true);
-                updateStatus('Connected! Fetching games...');
-                socket.emit('fetchResolvedGames', { account });
-            } catch (error) {
-                console.error('Error connecting wallet:', error);
-                updateStatus(`Connection error: ${error.message}`);
-                if (error.code === -32603) {
-                    updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
-                }
-            }
-        });
-
-        document.getElementById('createGameBtn').addEventListener('click', async () => {
-            if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
-            if (!selectedTokenId) return updateStatus('Select an NFT to bet.');
-            try {
-                updateStatus('Approving NFT...');
-                const approveTx = await nftContract.approve(gameAddress, selectedTokenId);
-                await approveTx.wait();
-                updateStatus('Creating game...');
-                const tx = await gameContractWithSigner.createGame(selectedTokenId);
-                await tx.wait();
-                updateStatus('Game created! Waiting for join...');
-                await fetchUserTokens();
-                selectedTokenId = null;
-                document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-            } catch (error) {
-                console.error('Error creating game:', error);
-                updateStatus(`Error creating game: ${error.message}`);
-                if (error.code === -32603) {
-                    updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
-                }
-            }
-        });
-
-        window.joinGameFromList = async (gameId) => {
-            if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
-            if (!selectedTokenId) return updateStatus('Select an NFT to bet.');
-            try {
-                updateStatus('Approving NFT...');
-                const approveTx = await nftContract.approve(gameAddress, selectedTokenId);
-                await approveTx.wait();
-                updateStatus('Joining game...');
-                const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
-                await tx.wait();
-                updateStatus('Joined! Waiting for result...');
-                await fetchUserTokens();
-                selectedTokenId = null;
-                document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-            } catch (error) {
-                console.error('Error joining game:', error);
-                updateStatus(`Error joining: ${error.message}`);
-                if (error.code === -32603) {
-                    updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
-                }
-            }
-        };
-
-        window.cancelUnjoinedFromList = async (gameId) => {
-            if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
-            try {
-                updateStatus('Canceling game...');
-                const tx = await gameContractWithSigner.cancelUnjoinedGame(gameId);
-                await tx.wait();
-                updateStatus('Game canceled.');
-                await fetchUserTokens();
-            } catch (error) {
-                console.error('Error canceling unjoined game:', error);
-                updateStatus(`Error canceling: ${error.message}`);
-                if (error.code === -32603) {
-                    updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
-                }
-            }
-        };
-
-        async function fetchUserTokens(showLoading = false) {
-            if (!nftContract || !account) {
-                console.log('Cannot fetch tokens: nftContract or account missing');
-                return;
-            }
-            if (showLoading) showLoadingScreen();
-            userTokens = [];
-            const nftGrid = document.getElementById('nftGrid');
-            nftGrid.innerHTML = '<p class="text-center text-xs">Loading NFTs...</p>';
-            try {
-                console.log('Fetching tokens for account:', account);
-                const tokens = await nftContract.tokensOfOwner(account);
-                console.log('Tokens fetched:', tokens);
-                for (let id of tokens) {
-                    let uri = await nftContract.tokenURI(id);
-                    if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
-                    const response = await fetch(uri);
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const metadata = await response.json();
-                    let image = metadata.image;
-                    if (image && image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
-                    userTokens.push({ id: id.toString(), image: image || 'https://via.placeholder.com/64' });
-                }
-                console.log('User tokens loaded:', userTokens);
-                document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
-                document.getElementById('createGameBtn').disabled = userTokens.length === 0;
-                if (userTokens.length === 0) {
-                    nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs owned</p>';
-                } else {
-                    displayNFTsInModal(userTokens);
-                }
-                if (showLoading) hideLoadingScreen();
-            } catch (error) {
-                console.error('Error fetching tokens:', error);
-                updateStatus(`Tokens fetch error: ${error.message}`);
-                nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
-                if (showLoading) hideLoadingScreen();
-            }
-        }
-
-        // Socket.IO event listeners
-        socket.on('connect', () => {
-            console.log('Connected to backend:', socket.id);
-            if (account) {
-                socket.emit('registerAddress', { address: account });
-            }
-            updateStatus('Connected to backend, waiting for games...');
-        });
-
-        socket.on('openGamesUpdate', (games) => {
-            console.log('Received openGamesUpdate:', games);
-            updateOpenGames(games, account);
-        });
-
-        socket.on('gameJoined', async (data) => {
-            console.log('Received gameJoined:', data);
-            resolvedGames.push({ 
-                gameId: data.gameId, 
-                player1: data.player1, 
-                tokenId1: data.tokenId1, 
-                image1: data.image1,
-                player2: data.player2, 
-                tokenId2: data.tokenId2, 
-                image2: data.image2,
-                resolved: false, 
-                userResolved: { [account.toLowerCase()]: false }, 
-                viewed: { [account.toLowerCase()]: false }
-            });
-            updateResultsModal(resolvedGames, account);
-            updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
-            await fetchUserTokens();
-        });
-
-        socket.on('resolvedGames', (games) => {
-            console.log('Received resolvedGames:', games);
-            resolvedGames = games.map(game => ({
-                ...game,
-                userResolved: game.userResolved || { [account.toLowerCase()]: false },
-                viewed: game.viewed || { [account.toLowerCase()]: false }
-            }));
-            updateResultsModal(resolvedGames, account);
-        });
-
-        socket.on('gameResolution', async (data) => {
-            console.log('Received gameResolution:', data);
-            if (data.error) {
-                // Handle transient errors by retrying
-                if (data.error === 'Game not resolved or no winner') {
-                    console.log(`Game ${data.gameId} not yet resolved, retrying...`);
-                    setTimeout(() => {
-                        socket.emit('fetchResolvedGames', { account });
-                    }, 3000); // Retry after 3 seconds
-                    return; // Keep loading state, don’t show error
-                }
-                // Definitive errors (e.g., game not found)
-                updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
-                isResolving = false;
-                return;
-            }
-            // Game resolved successfully
-            isResolving = false;
-            const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
-            updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4', 
-                win ? 'You Win!' : 'You Lose!', 
-                data.image1 || 'https://via.placeholder.com/64', 
-                data.image2 || 'https://via.placeholder.com/64'
-            );
-            // Fetch the latest unresolved games from backend
-            socket.emit('fetchResolvedGames', { account });
-            await fetchUserTokens();
-        });
-
-        socket.on('disconnect', () => {
-            console.log('Disconnected from backend');
-            updateStatus('Disconnected from backend, attempting reconnect...');
-        });
-
-        socket.on('connect_error', (error) => {
-            console.error('Socket connection error:', error);
-            updateStatus(`Socket connection error: ${error.message}`);
-        });
-
-        socket.on('reconnect', (attempt) => {
-            console.log('Reconnected to backend after attempt:', attempt);
-            if (account) {
-                socket.emit('registerAddress', { address: account });
-            }
-            updateStatus('Reconnected to backend!');
-        });
-
-        socket.on('reconnect_error', (error) => {
-            console.error('Socket reconnection error:', error);
-            updateStatus(`Socket reconnection error: ${error.message}`);
-        });
-    </script>
+    <script type="module" src="/abis.js"></script>
+    <script type="module" src="/ui.js"></script>
+    <script type="module" src="/app.js"></script>
 </body>
 </html>
