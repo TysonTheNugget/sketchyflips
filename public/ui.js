@@ -42,10 +42,7 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
 
     document.getElementById('resultsModal').querySelector('.close').onclick = () => {
         console.log('Closing results modal');
-        const currentAccount = getAccount();
-        if (currentAccount) {
-            socket.emit('markGamesViewed', { account: currentAccount, gameIds: getResolvedGames().map(g => g.gameId) });
-        }
+        socket.emit('markGamesViewed', { account: getAccount(), gameIds: getResolvedGames().map(g => g.gameId) });
         document.getElementById('resultsModal').style.display = 'none';
     };
 
@@ -58,10 +55,7 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         }
         if (event.target === document.getElementById('resultsModal')) {
             console.log('Clicked outside results modal');
-            const currentAccount = getAccount();
-            if (currentAccount) {
-                socket.emit('markGamesViewed', { account: currentAccount, gameIds: getResolvedGames().map(g => g.gameId) });
-            }
+            socket.emit('markGamesViewed', { account: getAccount(), gameIds: getResolvedGames().map(g => g.gameId) });
             document.getElementById('resultsModal').style.display = 'none';
         }
     };
@@ -195,17 +189,11 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
     console.log('Updating results modal with:', resolvedGames);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
-    if (!account) {
-        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">Connect wallet to view games.</li>';
-        document.getElementById('resultsNotification').classList.add('hidden');
-        return;
-    }
-    const accountLower = account?.toLowerCase() || '';
     const userGames = resolvedGames.filter(game =>
-        (game.player1.toLowerCase() === accountLower ||
-         (game.player2 && game.player2.toLowerCase() === accountLower))
+        (game.player1.toLowerCase() === account.toLowerCase() ||
+         (game.player2 && game.player2.toLowerCase() === account.toLowerCase()))
     );
-    const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[accountLower]).length;
+    const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[account.toLowerCase()]).length;
     document.getElementById('resultsButton').classList.remove('hidden');
     if (userGames.length === 0) {
         resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No games.</li>';
@@ -224,7 +212,7 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         if (!game.resolved) {
             buttonText = 'Pending';
             disabled = 'disabled';
-        } else if (!game.userResolved[accountLower]) {
+        } else if (!game.userResolved[account.toLowerCase()]) {
             buttonText = 'Resolve';
         } else {
             buttonText = 'Replay';
@@ -243,29 +231,42 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         resultsModalList.appendChild(li);
     });
     // Add event listeners for resolve buttons
-    document.querySelectorAll('.resolve-game-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            if (!uiOptions.getAccount()) {
-                console.warn('No account connected, skipping resolve/replay');
-                updateStatus('Connect wallet to resolve games.');
-                return;
-            }
-            const gameId = button.getAttribute('data-game-id');
-            const game = uiOptions.getResolvedGames().find(g => g.gameId === gameId);
-            if (!game || !game.resolved) return;
-            const isReplay = game.userResolved[uiOptions.getAccount().toLowerCase()];
-            const win = game.winner === uiOptions.getAccount().toLowerCase();
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4',
-                win ? 'You Win!' : 'You Lose!',
-                game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
-                game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
-            );
-            if (!isReplay) {
-                socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
-            }
-        });
+
+document.querySelectorAll('.resolve-game-btn').forEach(button => {
+
+    button.addEventListener('click', () => {
+
+        const gameId = button.getAttribute('data-game-id');
+
+        const game = uiOptions.getResolvedGames().find(g => g.gameId === gameId);
+
+        if (!game || !game.resolved) return;
+
+        const isReplay = game.userResolved[uiOptions.getAccount().toLowerCase()];
+
+        const win = game.winner === uiOptions.getAccount().toLowerCase();
+
+        playResultVideo(
+
+            win ? '/win.mp4' : '/lose.mp4',
+
+            win ? 'You Win!' : 'You Lose!',
+
+            game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
+
+            game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
+
+        );
+
+        if (!isReplay) {
+
+            socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
+
+        }
+
     });
+
+});
 }
 
 export function playResultVideo(src, text, image1, image2) {
