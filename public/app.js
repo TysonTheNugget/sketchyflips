@@ -42,6 +42,11 @@ async function resolveGame(gameId) {
         console.log('Resolve already in progress, ignoring click for game:', gameId);
         return;
     }
+    if (!account) {
+        console.warn('No account connected, skipping resolve');
+        updateStatus('Connect wallet to resolve games.');
+        return;
+    }
     isResolving = true;
     updateStatus('Checking blockchain for result...');
     try {
@@ -248,8 +253,8 @@ socket.on('gameJoined', async (data) => {
         tokenId2: data.tokenId2, 
         image2: data.image2,
         resolved: false, 
-        userResolved: { [account.toLowerCase()]: false }, 
-        viewed: { [account.toLowerCase()]: false }
+        userResolved: { [account?.toLowerCase() || '']: false }, 
+        viewed: { [account?.toLowerCase() || '']: false }
     });
     updateResultsModal(resolvedGames, account);
     updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
@@ -260,8 +265,8 @@ socket.on('resolvedGames', (games) => {
     console.log('Received resolvedGames:', games);
     resolvedGames = games.map(game => ({
         ...game,
-        userResolved: game.userResolved || { [account.toLowerCase()]: false },
-        viewed: game.viewed || { [account.toLowerCase()]: false }
+        userResolved: game.userResolved || { [account?.toLowerCase() || '']: false },
+        viewed: game.viewed || { [account?.toLowerCase() || '']: false }
     }));
     updateResultsModal(resolvedGames, account);
 });
@@ -292,7 +297,9 @@ socket.on('gameResolution', async (data) => {
         data.image1 || 'https://via.placeholder.com/64', 
         data.image2 || 'https://via.placeholder.com/64'
     );
-    socket.emit('markGameResolved', { gameId: data.gameId, account });
+    if (account) {
+        socket.emit('markGameResolved', { gameId: data.gameId, account });
+    }
     // Fetch the latest unresolved games from backend
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
