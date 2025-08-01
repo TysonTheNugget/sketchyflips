@@ -11,11 +11,10 @@
             background-image: url('background3.jpg');
         }
         /* Additional styles specific to this info page for better readability and matching theme */
-        /* Make container wider to fit content horizontally without excessive centering/scrolling */
         .container {
-            max-width: 1200px; /* Increased width for wider layout */
-            margin: 10px auto; /* Reduced margin for less vertical space */
-            padding: 15px; /* Reduced padding */
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
             background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent dark overlay */
             border-radius: 10px;
             box-shadow: 0 0 15px rgba(255, 152, 0, 0.5); /* Orange glow to match theme */
@@ -23,59 +22,38 @@
         h1, h2 {
             color: #ff9800; /* Theme orange for headers */
             text-align: center;
-            margin-bottom: 10px; /* Reduced spacing */
-            font-size: 1.5rem; /* Smaller headers for compactness */
         }
         p {
-            line-height: 1.4; /* Slightly reduced line height */
-            margin-bottom: 10px; /* Reduced spacing */
+            line-height: 1.6;
+            margin-bottom: 15px;
             color: #ffffff;
-            font-size: 0.9rem; /* Smaller text for fitting more */
         }
         ul {
             list-style-type: disc;
             margin-left: 20px;
-            margin-bottom: 10px; /* Reduced spacing */
             color: #ffffff;
-            font-size: 0.9rem;
-        }
-        ul li {
-            margin-bottom: 5px; /* Less space between list items */
         }
         .beta-warning {
             background-color: #ffcc00;
             color: #000000;
-            padding: 8px;
+            padding: 10px;
             border-radius: 5px;
             text-align: center;
             font-weight: bold;
-            margin-bottom: 10px; /* Reduced */
-            font-size: 0.9rem;
+            margin-bottom: 20px;
         }
         .risks {
             color: #ff0000; /* Red for risks */
         }
         .tips {
             background-color: rgba(255, 152, 0, 0.2);
-            padding: 8px;
+            padding: 10px;
             border-radius: 5px;
             color: #ffffff;
-            margin-bottom: 10px; /* Reduced */
-            font-size: 0.9rem;
         }
         .home-button-container {
             text-align: center;
-            margin-top: 10px; /* Reduced */
-        }
-        /* Flex layout for sections to make them side-by-side where possible */
-        .sections {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        .section {
-            flex: 1;
-            min-width: 300px;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -87,56 +65,46 @@
             IMPORTANT: This game is currently in BETA! Features may change, and there could be unexpected issues. Play at your own risk.
         </div>
         
-        <div class="sections">
-            <div class="section">
-                <h2>Welcome to Bet-A-Sketchy!</h2>
-                <p>
-                    Bet-A-Sketchy is an exciting blockchain-based game where two players stake their SketchyMilios NFTs in a fair coin flip showdown. Powered by Gelato VRF for true randomness, the winner takes both NFTs! It's simple, thrilling, and fully on-chain using the contract at 0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6 on ABChain.
-                </p>
-            </div>
-            
-            <div class="section">
-                <h2>How to Play</h2>
-                <p>
-                    Step-by-step guide based on the game's smart contract and UI:
-                </p>
-                <ul>
-                    <li><strong>Connect Wallet:</strong> Use MetaMask to connect your account. The app will fetch your SketchyMilios NFTs from contract 0x08533a2b16e3db03eebd5b23210122f97dfcb97d.</li>
-                    <li><strong>Select NFT:</strong> Click "Select NFT" to choose a SketchyMilio from your owned tokens (displayed as images from backblazeb2.com).</li>
-                    <li><strong>Create Game:</strong> Approve and transfer your NFT to the contract via createGame(). Emits GameCreated event; wait for someone to join.</li>
-                    <li><strong>Join Game:</strong> Browse open games in the list, select one, approve your NFT, and call joinGame(). Triggers randomness request via Gelato VRF.</li>
-                    <li><strong>Resolve Game:</strong> Once joined, VRF fulfills randomness in _fulfillRandomness(), determining winner (50/50). Winner gets both NFTs. Check results in the "Results" button/modal.</li>
-                    <li><strong>Cancel Options:</strong> Creators can cancel unjoined games after 1 hour via cancelUnjoinedGame(). Joined games can be canceled by either player after 24 hours if not resolved via cancelGame().</li>
-                    <li><strong>View Open/Resolved Games:</strong> Open games show in the list with join/cancel buttons. Resolved games appear in the results modal with resolve/replay options, playing win/lose videos.</li>
-                </ul>
-            </div>
-            
-            <div class="section">
-                <h2>Risks and Important Notes</h2>
-                <p class="risks">
-                    Key risks from the contract and app logic:
-                </p>
-                <ul class="risks">
-                    <li>Staking real SketchyMilios NFTs—losing transfers ownership permanently to the winner via nft.transferFrom().</li>
-                    <li>Transactions can fail due to gas, network issues, or RPC errors (e.g., code -32603: Disconnect/reconnect MetaMask).</li>
-                    <li>Gelato VRF may have rare delays in fulfillment; use cancel if stuck after 24 hours.</li>
-                    <li>Beta stage: Potential UI glitches (e.g., video playback errors) or backend socket disconnects—reconnect attempts are automatic.</li>
-                    <li>Immutable blockchain: No refunds; all transfers/events are final. Always verify on ABScan.</li>
-                </ul>
-            </div>
-            
-            <div class="section">
-                <h2>Tips and Troubleshooting</h2>
-                <div class="tips">
-                    <p>
-                        - Contract verified on ABScan; VRF by Gelato for fairness/transparency.<br>
-                        - Errors? Force-close MetaMask/Web3 app, retry. Check status messages for RPC issues.<br>
-                        - Failures possible (e.g., network congestion), but blockchain remains true—verify tx on ABScan.<br>
-                        - Stable connection recommended; enough gas for approve/transfer calls.<br>
-                        - UI updates via Socket.IO: If disconnected, app auto-reconnects and re-registers address.
-                    </p>
-                </div>
-            </div>
+        <h2>Welcome to Bet-A-Sketchy!</h2>
+        <p>
+            Bet-A-Sketchy is an exciting blockchain-based game where two players stake their SketchyMilios NFTs in a fair coin flip showdown. Powered by Gelato VRF for true randomness, the winner takes both NFTs! It's simple, thrilling, and fully on-chain using the contract at 0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6 on ABChain.
+        </p>
+        
+        <h2>How to Play</h2>
+        <p>
+            Step-by-step guide based on the game's smart contract and UI:
+        </p>
+        <ul>
+            <li><strong>Connect Wallet:</strong> Use MetaMask to connect your account. The app will fetch your SketchyMilios NFTs from contract 0x08533a2b16e3db03eebd5b23210122f97dfcb97d.</li>
+            <li><strong>Select NFT:</strong> Click "Select NFT" to choose a SketchyMilio from your owned tokens (displayed as images from backblazeb2.com).</li>
+            <li><strong>Create Game:</strong> Approve and transfer your NFT to the contract via createGame(). Emits GameCreated event; wait for someone to join.</li>
+            <li><strong>Join Game:</strong> Browse open games in the list, select one, approve your NFT, and call joinGame(). Triggers randomness request via Gelato VRF.</li>
+            <li><strong>Resolve Game:</strong> Once joined, VRF fulfills randomness in _fulfillRandomness(), determining winner (50/50). Winner gets both NFTs. Check results in the "Results" button/modal.</li>
+            <li><strong>Cancel Options:</strong> Creators can cancel unjoined games after 1 hour via cancelUnjoinedGame(). Joined games can be canceled by either player after 24 hours if not resolved via cancelGame().</li>
+            <li><strong>View Open/Resolved Games:</strong> Open games show in the list with join/cancel buttons. Resolved games appear in the results modal with resolve/replay options, playing win/lose videos.</li>
+        </ul>
+        
+        <h2>Risks and Important Notes</h2>
+        <p class="risks">
+            Key risks from the contract and app logic:
+        </p>
+        <ul class="risks">
+            <li>Staking real SketchyMilios NFTs—losing transfers ownership permanently to the winner via nft.transferFrom().</li>
+            <li>Transactions can fail due to insufficient gas (just increase gas and try again), network issues, or RPC errors (e.g., code -32603: Disconnect/reconnect MetaMask).</li>
+            <li>Gelato VRF may have rare delays in fulfillment; use cancel if stuck after 24 hours.</li>
+            <li>Beta stage: Potential UI glitches (e.g., video playback errors) or backend socket disconnects—reconnect attempts are automatic.</li>
+            <li>Immutable blockchain: No refunds; all transfers/events are final. Always verify on ABScan.</li>
+        </ul>
+        
+        <h2>Tips and Troubleshooting</h2>
+        <div class="tips">
+            <p>
+                - Contract verified on ABScan; VRF by Gelato for fairness/transparency.<br>
+                - Errors? Force-close MetaMask/Web3 app, retry. Check status messages for RPC issues.<br>
+                - Failures possible (e.g., network congestion), but blockchain remains true—verify tx on ABScan.<br>
+                - Stable connection recommended; enough gas for approve/transfer calls.<br>
+                - UI updates via Socket.IO: If disconnected, app auto-reconnects and re-registers address.
+            </p>
         </div>
 
         <div class="home-button-container">
