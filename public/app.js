@@ -64,6 +64,9 @@ async function resolveGame(gameId) {
             );
             socket.emit('markGameResolved', { gameId, account });
             socket.emit('fetchResolvedGames', { account });
+            setTimeout(() => {
+                socket.emit('fetchResolvedGames', { account });
+            }, 2000);
             await fetchUserTokens();
             isResolving = false;
             return;
