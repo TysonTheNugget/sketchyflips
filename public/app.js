@@ -16,53 +16,30 @@ let resolvedGames = [];
 let isResolving = false;
 
 async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
-    console.log(`Fetching blockchain winner for game ${gameId}`);
-    try {
-        const contract = new ethers.Contract(gameAddress, gameABI, provider);
-        const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
-        const filter = {
-            address: gameAddress,
-            topics: [
-                topic,
-                ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
-            ]
+    const contract = new ethers.Contract(gameAddress, gameABI, provider);
+    const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
+    const filter = {
+        address: gameAddress,
+        topics: [
+            topic,
+            ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
+        ]
+    };
+    const logs = await provider.getLogs(filter);
+    if (logs.length > 0) {
+        const event = contract.interface.parseLog(logs[0]);
+        return {
+            winner: event.args.winner.toLowerCase(),
+            tokenId1: event.args.tokenId1.toString(),
+            tokenId2: event.args.tokenId2.toString()
         };
-        const logs = await provider.getLogs(filter);
-        if (logs.length > 0) {
-            const event = contract.interface.parseLog(logs[0]);
-            console.log(`Found GameResolved event for game ${gameId}:`, event.args);
-            return {
-                winner: event.args.winner.toLowerCase(),
-                tokenId1: event.args.tokenId1.toString(),
-                tokenId2: event.args.tokenId2.toString()
-            };
-        }
-        console.log(`No GameResolved event for game ${gameId}, checking cancellation`);
-        const cancelTopic = ethers.utils.id('GameCanceled(uint256)');
-        const cancelFilter = {
-            address: gameAddress,
-            topics: [
-                cancelTopic,
-                ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
-            ]
-        };
-        const cancelLogs = await provider.getLogs(cancelFilter);
-        if (cancelLogs.length > 0) {
-            console.log(`Game ${gameId} was canceled`);
-            return { error: 'Game was canceled' };
-        }
-        console.log(`No resolution or cancellation found for game ${gameId}`);
-        return null;
-    } catch (error) {
-        console.error(`Error fetching blockchain winner for game ${gameId}:`, error.message, error.stack);
-        return null;
     }
+    return null;
 }
 
 async function resolveGame(gameId) {
     if (isResolving) {
         console.log('Resolve already in progress, ignoring click for game:', gameId);
-        updateStatus('Resolution in progress, please wait...');
         return;
     }
     if (!account) {
@@ -71,19 +48,18 @@ async function resolveGame(gameId) {
         return;
     }
     isResolving = true;
-    updateStatus(`Resolving game #${gameId}...`);
+    updateStatus('Checking blockchain for result...');
     try {
-        // Try blockchain first
-        const chainResult = await getGameWinnerOnChain(gameId, gameAddress, gameABI, provider);
+        // Try to get the result directly from the blockchain (frontend, fastest!)
+        const chainResult = await getGameWinnerOnChain(
+            gameId,
+            gameAddress,
+            gameABI,
+            provider // use your ethers.js provider (NOT signer)
+        );
         if (chainResult) {
-            if (chainResult.error) {
-                console.log(`Game ${gameId} resolution failed: ${chainResult.error}`);
-                updateStatus(`Game #${gameId}: ${chainResult.error}`);
-                isResolving = false;
-                return;
-            }
+            // Found winner on chain!
             const win = account && chainResult.winner === account.toLowerCase();
-            console.log(`Game ${gameId} resolved on chain: ${win ? 'Win' : 'Lose'}`);
             updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
             playResultVideo(
                 win ? '/win.mp4' : '/lose.mp4',
@@ -100,25 +76,20 @@ async function resolveGame(gameId) {
             isResolving = false;
             return;
         }
-        // Fallback to backend
-        console.log(`No blockchain result for game ${gameId}, falling back to backend`);
-        updateStatus(`Game #${gameId}: Checking backend...`);
-        socket.emit('resolveGame', { gameId, account });
-    } catch (error) {
-        console.error(`Error resolving game ${gameId}:`, error.message, error.stack);
-        updateStatus(`Error resolving game #${gameId}: ${error.message}`);
-        isResolving = false;
-        socket.emit('fetchResolvedGames', { account });
+    } catch (err) {
+        // If there's an error querying chain, fallback to backend:
+        console.error('Blockchain query error, falling back to backend:', err);
     }
-    // Timeout to prevent hanging
+    // Fallback: let backend handle as before
+    updateStatus('Loading... Checking game resolution...');
+    socket.emit('resolveGame', { gameId, account });
     setTimeout(() => {
         if (isResolving) {
-            console.warn(`Resolution timeout for game ${gameId}`);
             isResolving = false;
-            updateStatus(`Game #${gameId} resolution timed out, please try again.`);
+            updateStatus('Resolution timed out, please try again.');
             socket.emit('fetchResolvedGames', { account });
         }
-    }, 30000); // Reduced timeout to 30 seconds
+    }, 60000);
 }
 
 initializeUI({ 
@@ -126,16 +97,12 @@ initializeUI({
     getAccount: () => account, 
     getResolvedGames: () => resolvedGames, 
     getUserTokens: () => userTokens, 
-    setSelectedTokenId: (id) => { 
-        selectedTokenId = id; 
-        console.log('Selected token ID set to:', id);
-    },
+    setSelectedTokenId: (id) => { selectedTokenId = id; },
     resolveGame
 });
 
 document.getElementById('connectWallet').addEventListener('click', async () => {
     if (!window.ethereum) {
-        console.error('MetaMask not detected');
         updateStatus('Install MetaMask.');
         return;
     }
@@ -144,7 +111,6 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
         account = await signer.getAddress();
-        console.log('Wallet connected:', account);
         document.getElementById('accountInfo').textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
         updateStatus('Wallet connected...');
         
@@ -157,7 +123,7 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
         updateStatus('Connected! Fetching games...');
         socket.emit('fetchResolvedGames', { account });
     } catch (error) {
-        console.error('Error connecting wallet:', error.message, error.stack);
+        console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
         if (error.code === -32603) {
             updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
@@ -166,29 +132,21 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
 });
 
 document.getElementById('createGameBtn').addEventListener('click', async () => {
-    if (!gameContractWithSigner) {
-        console.warn('No signer connected');
-        return updateStatus('Connect wallet first.');
-    }
-    if (!selectedTokenId) {
-        console.warn('No NFT selected');
-        return updateStatus('Select an NFT to bet.');
-    }
+    if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
+    if (!selectedTokenId) return updateStatus('Select an NFT to bet.');
     try {
         updateStatus('Approving NFT...');
         const approveTx = await nftContract.approve(gameAddress, selectedTokenId);
         await approveTx.wait();
-        console.log('NFT approved, creating game with token:', selectedTokenId);
         updateStatus('Creating game...');
         const tx = await gameContractWithSigner.createGame(selectedTokenId);
         await tx.wait();
-        console.log('Game created successfully');
         updateStatus('Game created! Waiting for join...');
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
     } catch (error) {
-        console.error('Error creating game:', error.message, error.stack);
+        console.error('Error creating game:', error);
         updateStatus(`Error creating game: ${error.message}`);
         if (error.code === -32603) {
             updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
@@ -197,29 +155,21 @@ document.getElementById('createGameBtn').addEventListener('click', async () => {
 });
 
 window.joinGameFromList = async (gameId) => {
-    if (!gameContractWithSigner) {
-        console.warn('No signer connected');
-        return updateStatus('Connect wallet first.');
-    }
-    if (!selectedTokenId) {
-        console.warn('No NFT selected');
-        return updateStatus('Select an NFT to bet.');
-    }
+    if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
+    if (!selectedTokenId) return updateStatus('Select an NFT to bet.');
     try {
         updateStatus('Approving NFT...');
         const approveTx = await nftContract.approve(gameAddress, selectedTokenId);
         await approveTx.wait();
-        console.log('NFT approved, joining game:', gameId);
         updateStatus('Joining game...');
         const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
         await tx.wait();
-        console.log('Game joined successfully');
         updateStatus('Joined! Waiting for result...');
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
     } catch (error) {
-        console.error('Error joining game:', error.message, error.stack);
+        console.error('Error joining game:', error);
         updateStatus(`Error joining: ${error.message}`);
         if (error.code === -32603) {
             updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
@@ -228,20 +178,15 @@ window.joinGameFromList = async (gameId) => {
 };
 
 window.cancelUnjoinedFromList = async (gameId) => {
-    if (!gameContractWithSigner) {
-        console.warn('No signer connected');
-        return updateStatus('Connect wallet first.');
-    }
+    if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
     try {
-        console.log('Canceling game:', gameId);
         updateStatus('Canceling game...');
         const tx = await gameContractWithSigner.cancelUnjoinedGame(gameId);
         await tx.wait();
-        console.log('Game canceled successfully');
         updateStatus('Game canceled.');
         await fetchUserTokens();
     } catch (error) {
-        console.error('Error canceling unjoined game:', error.message, error.stack);
+        console.error('Error canceling unjoined game:', error);
         updateStatus(`Error canceling: ${error.message}`);
         if (error.code === -32603) {
             updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
@@ -261,12 +206,12 @@ async function fetchUserTokens(showLoading = false) {
     try {
         console.log('Fetching tokens for account:', account);
         const tokens = await nftContract.tokensOfOwner(account);
-        console.log('Tokens fetched:', tokens.length);
+        console.log('Tokens fetched:', tokens);
         for (let id of tokens) {
             const image = `https://f005.backblazeb2.com/file/sketchymilios/${id}.png`;
             userTokens.push({ id: id.toString(), image });
         }
-        console.log('User tokens loaded:', userTokens.length);
+        console.log('User tokens loaded:', userTokens);
         document.getElementById('selectNFTBtn').disabled = userTokens.length === 0;
         document.getElementById('createGameBtn').disabled = userTokens.length === 0;
         if (userTokens.length === 0) {
@@ -276,7 +221,7 @@ async function fetchUserTokens(showLoading = false) {
         }
         if (showLoading) hideLoadingScreen();
     } catch (error) {
-        console.error('Error fetching tokens:', error.message, error.stack);
+        console.error('Error fetching tokens:', error);
         updateStatus(`Tokens fetch error: ${error.message}`);
         nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
         if (showLoading) hideLoadingScreen();
@@ -293,13 +238,12 @@ socket.on('connect', () => {
 });
 
 socket.on('openGamesUpdate', (games) => {
-    console.log('Received openGamesUpdate:', games.length, 'games');
+    console.log('Received openGamesUpdate:', games);
     updateOpenGames(games, account);
 });
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    resolvedGames = resolvedGames.filter(g => g.gameId !== data.gameId);
     resolvedGames.push({ 
         gameId: data.gameId, 
         player1: data.player1, 
@@ -310,9 +254,7 @@ socket.on('gameJoined', async (data) => {
         image2: data.image2,
         resolved: false, 
         userResolved: { [account?.toLowerCase() || '']: false }, 
-        viewed: { [account?.toLowerCase() || '']: false },
-        createTimestamp: data.createTimestamp,
-        joinTimestamp: data.joinTimestamp
+        viewed: { [account?.toLowerCase() || '']: false }
     });
     updateResultsModal(resolvedGames, account);
     updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
@@ -320,7 +262,7 @@ socket.on('gameJoined', async (data) => {
 });
 
 socket.on('resolvedGames', (games) => {
-    console.log('Received resolvedGames:', games.length, 'games');
+    console.log('Received resolvedGames:', games);
     resolvedGames = games.map(game => ({
         ...game,
         userResolved: game.userResolved || { [account?.toLowerCase() || '']: false },
@@ -332,40 +274,33 @@ socket.on('resolvedGames', (games) => {
 socket.on('gameResolution', async (data) => {
     console.log('Received gameResolution:', data);
     if (data.error) {
-        console.log(`Game resolution error for ${data.gameId}: ${data.error}`);
-        if (data.error === 'Game not resolved or canceled' || data.error === 'Game was canceled') {
-            console.log(`Retrying fetch for game ${data.gameId}`);
+        // Handle transient errors by retrying
+        if (data.error === 'Game not resolved or no winner') {
+            console.log(`Game ${data.gameId} not yet resolved, retrying...`);
             setTimeout(() => {
                 socket.emit('fetchResolvedGames', { account });
-            }, 3000);
-            updateStatus(`Game #${data.gameId}: ${data.error}, retrying...`);
-            return;
+            }, 3000); // Retry after 3 seconds
+            return; // Keep loading state, don’t show error
         }
+        // Definitive errors (e.g., game not found)
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
         isResolving = false;
-        socket.emit('fetchResolvedGames', { account });
         return;
     }
+    // Game resolved successfully
     isResolving = false;
     const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
-    console.log(`Game ${data.gameId} resolved: ${win ? 'Win' : 'Lose'}`);
     updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
     playResultVideo(
         win ? '/win.mp4' : '/lose.mp4', 
         win ? 'You Win!' : 'You Lose!', 
-        data.image1 || 'https://via.placeholder.com/64',
+        data.image1 || 'https://via.placeholder.com/64', 
         data.image2 || 'https://via.placeholder.com/64'
     );
     if (account) {
         socket.emit('markGameResolved', { gameId: data.gameId, account });
-        resolvedGames = resolvedGames.map(game =>
-            game.gameId === data.gameId ? {
-                ...game,
-                userResolved: { ...game.userResolved, [account.toLowerCase()]: true },
-                viewed: { ...game.viewed, [account.toLowerCase()]: true }
-            } : game
-        );
     }
+    // Fetch the latest unresolved games from backend
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
 });
@@ -376,7 +311,7 @@ socket.on('disconnect', () => {
 });
 
 socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error.message, error.stack);
+    console.error('Socket connection error:', error);
     updateStatus(`Socket connection error: ${error.message}`);
 });
 
@@ -384,12 +319,11 @@ socket.on('reconnect', (attempt) => {
     console.log('Reconnected to backend after attempt:', attempt);
     if (account) {
         socket.emit('registerAddress', { address: account });
-        socket.emit('fetchResolvedGames', { account });
     }
     updateStatus('Reconnected to backend!');
 });
 
 socket.on('reconnect_error', (error) => {
-    console.error('Socket reconnection error:', error.message, error.stack);
+    console.error('Socket reconnection error:', error);
     updateStatus(`Socket reconnection error: ${error.message}`);
 });
