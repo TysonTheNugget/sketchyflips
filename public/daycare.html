@@ -259,19 +259,14 @@
     }
 
     async function getNFTImage(tokenId) {
+  // Try Backblaze first
+         const url = `https://f005.backblazeb2.com/file/sketchymilios/${tokenId}.png`;
       try {
-        let uri = await nftContract.tokenURI(tokenId);
-        if (uri.startsWith('ipfs://')) uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
-        const response = await fetch(uri);
-        if (!response.ok) throw new Error('Failed to fetch metadata');
-        const metadata = await response.json();
-        let image = metadata.image || 'https://via.placeholder.com/64';
-        if (image.startsWith('ipfs://')) image = 'https://ipfs.io/ipfs/' + image.slice(7);
-        return image;
-      } catch (error) {
-        console.error(`Error fetching image for token ${tokenId}:`, error);
-        return 'https://via.placeholder.com/64';
-      }
+         const res = await fetch(url, { method: "HEAD" });
+         if (res.ok) return url;
+      } catch (e) {}
+  // Fallback (optional): default placeholder image
+      return 'https://via.placeholder.com/64';
     }
 
     async function fetchStakedNFTs() {
