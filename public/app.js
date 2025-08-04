@@ -114,8 +114,8 @@ async function scanChainForResolvedGames() {
                         tokenId1: event.args.tokenId1.toString(), 
                         tokenId2: event.args.tokenId2.toString(), 
                         resolved: true, 
-                        userResolved: { [account.toLowerCase()]: false }, 
-                        viewed: { [account.toLowerCase()]: false }, 
+                        userResolved: { [account?.toLowerCase() || '']: false }, 
+                        viewed: { [account?.toLowerCase() || '']: false }, 
                         image1: `https://f005.backblazeb2.com/file/sketchymilios/${event.args.tokenId1}.png`, 
                         image2: `https://f005.backblazeb2.com/file/sketchymilios/${event.args.tokenId2}.png` 
                     }; 
@@ -123,7 +123,7 @@ async function scanChainForResolvedGames() {
                     return null; 
                 } 
             }) 
-            .filter(event => event && (event.winner === account.toLowerCase())); 
+            .filter(event => event && account && (event.winner === account.toLowerCase())); 
         if (resolvedGamesOnChain.length > 0) { 
             resolvedGames = [...resolvedGames, ...resolvedGamesOnChain]; 
             updateResultsModal(resolvedGames, account); 
