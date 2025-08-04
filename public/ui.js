@@ -200,7 +200,7 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         document.getElementById('resultsNotification').classList.add('hidden');
         return;
     }
-    const accountLower = account?.toLowerCase() || '';
+    const accountLower = account.toLowerCase();
     const userGames = resolvedGames.filter(game =>
         (game.player1.toLowerCase() === accountLower ||
          (game.player2 && game.player2.toLowerCase() === accountLower))
