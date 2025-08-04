@@ -92,6 +92,48 @@ async function resolveGame(gameId) {
     }, 60000);
 }
 
+async function scanChainForResolvedGames() { 
+    if (!account || !provider) return; 
+    const contract = new ethers.Contract(gameAddress, gameABI, provider); 
+    const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)'); 
+    const filter = { 
+        address: gameAddress, 
+        topics: [topic], 
+        fromBlock: 0, 
+        toBlock: 'latest' 
+    }; 
+    try { 
+        const logs = await provider.getLogs(filter); 
+        const resolvedGamesOnChain = logs 
+            .map(log => { 
+                try { 
+                    const event = contract.interface.parseLog(log); 
+                    return { 
+                        gameId: parseInt(log.topics[1] || '0'), 
+                        winner: event.args.winner.toLowerCase(), 
+                        tokenId1: event.args.tokenId1.toString(), 
+                        tokenId2: event.args.tokenId2.toString(), 
+                        resolved: true, 
+                        userResolved: { [account.toLowerCase()]: false }, 
+                        viewed: { [account.toLowerCase()]: false }, 
+                        image1: `https://f005.backblazeb2.com/file/sketchymilios/${event.args.tokenId1}.png`, 
+                        image2: `https://f005.backblazeb2.com/file/sketchymilios/${event.args.tokenId2}.png` 
+                    }; 
+                } catch (e) { 
+                    return null; 
+                } 
+            }) 
+            .filter(event => event && (event.winner === account.toLowerCase())); 
+        if (resolvedGamesOnChain.length > 0) { 
+            resolvedGames = [...resolvedGames, ...resolvedGamesOnChain]; 
+            updateResultsModal(resolvedGames, account); 
+        } 
+    } catch (err) { 
+        console.error('Error scanning for resolved games:', err); 
+        updateStatus('Error checking chain results.'); 
+    } 
+}
+
 initializeUI({ 
     socket, 
     getAccount: () => account, 
@@ -326,4 +368,14 @@ socket.on('reconnect', (attempt) => {
 socket.on('reconnect_error', (error) => {
     console.error('Socket reconnection error:', error);
     updateStatus(`Socket reconnection error: ${error.message}`);
+});
+
+document.getElementById('resultsButton').addEventListener('click', async () => { 
+    if (!account || !provider) { 
+        updateStatus('Connect wallet to check results.'); 
+        return; 
+    } 
+    updateStatus('Checking on-chain game results...'); 
+    await scanChainForResolvedGames(); 
+    document.getElementById('resultsModal').classList.remove('hidden'); 
 });
