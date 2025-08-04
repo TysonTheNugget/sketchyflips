@@ -85,11 +85,13 @@
     <div id="loadingScreen" class="hide">
         <div id="loadingText">Loading SketchyMilios...</div>
     </div>
-    <!-- Results Button -->
+    <!-- Existing Results Button (to be ignored) -->
     <button id="resultsButton" class="neon-button">
         Results
         <span id="resultsNotification" class="hidden">0</span>
     </button>
+    <!-- New Results Button -->
+    <button id="newResultsButton" class="neon-button">New Results</button>
     <script type="module" src="/abis.js"></script>
     <script type="module" src="/ui.js"></script>
     <script type="module" src="/app.js"></script>
@@ -105,7 +107,7 @@
             "event GameResolved(uint256 gameId, address winner, uint256 tokenId1, uint256 tokenId2)"
         ];
         let provider, account;
-        const resultsButton = document.getElementById("resultsButton");
+        const resultsButton = document.getElementById("newResultsButton");
         const resultsModal = document.getElementById("resultsModal");
         const resultsList = document.getElementById("resultsModalList");
         const closeResultsModal = resultsModal.querySelector(".close");
@@ -131,7 +133,7 @@
             // Add scrollable area and a refresh button
             resultsList.innerHTML = `
                 <div class="mb-2 flex justify-end">
-                    <button id="refreshResults" class="neon-button text-xs py-1 px-2">🔄 Refresh</button>
+                    <button id="refreshResults" class="neon-button">🔄 Refresh</button>
                 </div>
                 <div id="resultsScrollable" class="max-h-80 overflow-y-auto space-y-2"></div>
             `;
@@ -183,7 +185,7 @@
                     li.innerHTML = `
                         <div class="font-bold text-xs mb-1">Game #${e.gameId}</div>
                         <div class="text-xs mb-1">NFT ${e.tokenId1} vs ${e.tokenId2}</div>
-                        <button class="neon-button text-xs px-4 py-1 mt-1 resolveBtn" data-token1="${e.tokenId1}" data-token2="${e.tokenId2}"> ▶️ Resolve </button>
+                        <button class="neon-button mt-1 resolveBtn" data-token1="${e.tokenId1}" data-token2="${e.tokenId2}"> ▶️ Resolve </button>
                     `;
                     scrollable.appendChild(li);
                 });
