@@ -70,14 +70,14 @@
         <div class="modal-content">
             <span class="close">×</span>
             <h2 class="text-lg text-center mb-2 font-bold">Game Results</h2>
-            <ul id="resultsModalList" class="space-y-2"></ul>
+            <ul id="resultsModalList" class="space-y-2 bg-transparent"></ul>
         </div>
     </div>
     <!-- Video Overlay -->
     <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
         <div class="relative">
             <div id="animationNFTs"></div>
-            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted></video>
+            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted autoplay></video>
             <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
         </div>
     </div>
@@ -135,7 +135,7 @@
                 <div class="mb-2 flex justify-end">
                     <button id="refreshResults" class="neon-button">🔄 Refresh</button>
                 </div>
-                <div id="resultsScrollable" class="max-h-80 overflow-y-auto space-y-2"></div>
+                <div id="resultsScrollable" class="max-h-80 overflow-y-auto space-y-2 bg-transparent"></div>
             `;
             fetchAndShowResults();
             document.getElementById("refreshResults").onclick = fetchAndShowResults;
@@ -173,19 +173,20 @@
                         return null;
                     }
                 }).filter(Boolean);
-                const myWins = parsed.filter(e => account && e.winner === account.toLowerCase());
-                if (!myWins.length) {
+                const myGames = parsed.filter(e => account); // Include all games for the user
+                if (!myGames.length) {
                     scrollable.innerHTML = `<div class="text-xs text-center py-4">No resolved games for your address.</div>`;
                     return;
                 }
                 scrollable.innerHTML = "";
-                myWins.forEach(e => {
+                myGames.forEach(e => {
+                    const isWinner = account && e.winner === account.toLowerCase();
                     const li = document.createElement("li");
                     li.className = "bg-white bg-opacity-10 p-2 rounded flex flex-col items-center border border-orange-400";
                     li.innerHTML = `
                         <div class="font-bold text-xs mb-1">Game #${e.gameId}</div>
                         <div class="text-xs mb-1">NFT ${e.tokenId1} vs ${e.tokenId2}</div>
-                        <button class="neon-button mt-1 resolveBtn" data-token1="${e.tokenId1}" data-token2="${e.tokenId2}"> ▶️ Resolve </button>
+                        <button class="neon-button mt-1 resolveBtn" data-token1="${e.tokenId1}" data-token2="${e.tokenId2}" data-is-winner="${isWinner}"> ▶️ Resolve </button>
                     `;
                     scrollable.appendChild(li);
                 });
@@ -193,7 +194,8 @@
                     btn.onclick = () => {
                         const image1 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token1}.png`;
                         const image2 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token2}.png`;
-                        playResultVideo("/win.mp4", "You Win!", image1, image2);
+                        const isWinner = btn.dataset.isWinner === "true";
+                        playResultVideo(isWinner ? "/public/win.mp4" : "/public/lose.mp4", isWinner ? "You Win!" : "You Lose!", image1, image2);
                     };
                 });
             } catch (err) {
@@ -207,9 +209,12 @@
                 <img src="${image2}" alt="NFT2" class="w-16 h-16 rounded border border-white">
             `;
             resultText.textContent = text;
+            resultVideo.src = ""; // Reset source to avoid caching
             resultVideo.src = src;
             videoOverlay.classList.remove("hidden");
-            resultVideo.play();
+            resultVideo.play().catch(err => {
+                console.error("Video playback failed:", err);
+            });
             videoOverlay.onclick = () => {
                 videoOverlay.classList.add("hidden");
                 resultVideo.pause();
