@@ -1,205 +1,227 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Sketchy Flips - Arcade Playground</title>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <link rel="stylesheet" href="/styles.css">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketchy Flips - Arcade Playground</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .neon-button {
+      background: #000;
+      color: #0ff;
+      border: 2px solid #0ff;
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      box-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff;
+      transition: all 0.3s;
+    }
+    .neon-button:hover {
+      background: #0ff;
+      color: #000;
+      box-shadow: 0 0 20px #0ff, 0 0 30px #0ff, 0 0 40px #0ff;
+    }
+    .modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      justify-content: center; align-items: center;
+      z-index: 100;
+    }
+    .modal-content {
+      background: #18181b;
+      color: #fff;
+      border-radius: 1rem;
+      max-width: 22rem;
+      min-width: 16rem;
+      width: 90vw;
+      box-shadow: 0 0 2rem #0ff6;
+      padding: 2rem 1.25rem 1.5rem 1.25rem;
+      position: relative;
+      text-align: center;
+    }
+    .modal .close {
+      position: absolute; top: 1rem; right: 1.5rem;
+      font-size: 2rem;
+      cursor: pointer;
+      color: #0ff;
+    }
+    #videoOverlay {
+      display: none;
+      z-index: 9999;
+    }
+    #videoOverlay.show {
+      display: flex !important;
+    }
+  </style>
 </head>
+<body class="bg-black text-white font-mono">
+  <div class="container mx-auto p-4">
+    <h1 class="text-3xl text-center mb-4">🎮 Sketchy Flips 🎲</h1>
+    <p class="text-center mb-8">Fun, friends, NFTs!</p>
 
-<body class="text-black">
-
-    <!-- Header -->
-
-    <header class="w-full text-center py-2 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm">
-
-        <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Dapps 🎲</h1>
-
-        <p class="text-xs md:text-sm text-white">Fun, friends, NFTs!</p>
-
-    </header>
-
-    <!-- Main Menu -->
-
-    <div id="mainMenu" class="w-full max-w-2xl p-2 flex flex-col items-center justify-center">
-
-        <div class="flex flex-col sm:flex-row justify-center gap-2">
-
-            <div class="relative">
-
-                <button id="betButton" class="neon-button">Bet-A-Sketchy</button>
-
-                <button id="infoButton" class="info-button absolute -top-1 -right-1">i</button>
-
-            </div>
-
-            <a href="daycare.html" class="neon-button">Mymilio Daycare</a>
-
-        </div>
-
+    <div class="flex justify-center space-x-4 mb-8">
+      <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
+      <button id="resultsButton" class="neon-button">Results</button>
     </div>
 
-    <!-- Game Interface -->
+    <p id="accountInfo" class="text-center mb-4">Account: Not connected</p>
+  </div>
 
-    <div id="gameInterface" class="hidden w-full max-w-4xl p-2 flex flex-col gap-2 h-[calc(100vh-80px)]">
-
-        <!-- Back Button -->
-
-        <button id="backButton" class="neon-button w-full">Home</button>
-
-        <!-- Controls -->
-
-        <div class="w-full flex flex-col gap-2">
-
-            <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
-
-            <p id="accountInfo" class="game-card p-1 text-center text-xs">Account: Not connected</p>
-
-            <div class="game-card p-2">
-
-                <label class="block font-bold text-xs mb-1">Selected NFT:</label>
-
-                <div id="selectedNFT" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs">Your Sketchy</div>
-
-                <button id="selectNFTBtn" disabled class="neon-button w-full mt-1">🎯 Select NFT</button>
-
-            </div>
-
-            <button id="createGameBtn" disabled class="neon-button w-full">🎰 Create Game</button>
-
-            <div class="game-card p-2 flex-grow">
-
-                <h2 class="text-sm text-center mb-1 font-bold">🎯 Open Games</h2>
-
-                <ul id="openGamesList" class="space-y-2 overflow-y-auto"></ul>
-
-            </div>
-
-            <div class="game-card p-2 text-center text-xs font-bold status-pulse">Status: <span id="status">Waiting...</span></div>
-
-        </div>
-
+  <!-- Results Modal -->
+  <div id="resultsModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 class="text-xl mb-4 font-bold">Game Results</h2>
+      <button id="refreshResults" class="neon-button w-full mb-4">🔄 Refresh Results</button>
+      <div id="resultsList"></div>
     </div>
+  </div>
 
-    <!-- Info Modal -->
-
-    <div id="infoModal" class="modal">
-
-        <div class="modal-content">
-
-            <span class="close">×</span>
-
-            <h2 class="text-lg text-center mb-2 font-bold">About Bet-A-Sketchy</h2>
-
-            <p class="text-center text-xs">50% chance PVP to win a Sketchy by betting one, verified by Gelato.
-
-                <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">ABScan</a> |
-
-                <a href="/moreinfo.html" target="_blank" class="text-blue-500 hover:underline">More Info</a>
-
-            </p>
-
-        </div>
-
+  <!-- Video Overlay -->
+  <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center">
+    <div class="relative">
+      <div id="animationNFTs" class="flex justify-center mb-2"></div>
+      <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-cyan-500" playsinline muted></video>
+      <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
     </div>
+  </div>
 
-    <!-- NFT Selection Modal -->
+  <script type="text/javascript">
+    const gameAddress = "0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6";
+    const gameABI = [
+      "event GameResolved(uint256 gameId, address winner, uint256 tokenId1, uint256 tokenId2)"
+    ];
 
-    <div id="nftModal" class="modal">
+    let provider, account;
+    let resultsCache = []; // prevents dupes on refresh
 
-        <div class="modal-content">
+    const connectBtn = document.getElementById("connectWallet");
+    const resultsBtn = document.getElementById("resultsButton");
+    const resultsModal = document.getElementById("resultsModal");
+    const closeModal = document.querySelector("#resultsModal .close");
+    const refreshResultsBtn = document.getElementById("refreshResults");
+    const resultsList = document.getElementById("resultsList");
+    const resultVideo = document.getElementById("resultVideo");
+    const videoOverlay = document.getElementById("videoOverlay");
+    const resultText = document.getElementById("resultText");
+    const animationNFTs = document.getElementById("animationNFTs");
+    const accountInfo = document.getElementById("accountInfo");
 
-            <span class="close">×</span>
+    connectBtn.onclick = async () => {
+      if (!window.ethereum) return alert("Install MetaMask!");
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      account = await provider.getSigner().getAddress();
+      accountInfo.textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
+    };
 
-            <h2 class="text-lg text-center mb-2 font-bold">Select NFT</h2>
+    resultsBtn.onclick = () => {
+      resultsModal.style.display = "flex";
+      showResults();
+    };
 
-            <div id="nftGrid" class="nft-grid"></div>
+    closeModal.onclick = () => {
+      resultsModal.style.display = "none";
+    };
 
-        </div>
+    window.onclick = function(event) {
+      if (event.target === resultsModal) {
+        resultsModal.style.display = "none";
+      }
+    };
 
-    </div>
+    refreshResultsBtn.onclick = showResults;
 
-    <!-- Results Modal -->
+    async function showResults() {
+      if (!account || !provider) {
+        resultsList.innerHTML = `<div class="text-center py-2 text-sm">Connect wallet first!</div>`;
+        return;
+      }
+      resultsList.innerHTML = `<div class="text-center py-2 text-sm italic text-cyan-400">Loading results...</div>`;
+      const contract = new ethers.Contract(gameAddress, gameABI, provider);
 
-    <div id="resultsModal" class="modal">
+      // Get all GameResolved events from the contract
+      const logs = await provider.getLogs({
+        address: gameAddress,
+        fromBlock: 0,
+        toBlock: "latest",
+        topics: [ethers.utils.id("GameResolved(uint256,address,uint256,uint256)")]
+      });
 
-        <div class="modal-content">
+      const parsed = logs.map(log => {
+        try {
+          const data = contract.interface.parseLog(log);
+          return {
+            gameId: data.args.gameId.toString(),
+            winner: data.args.winner.toLowerCase(),
+            tokenId1: data.args.tokenId1.toString(),
+            tokenId2: data.args.tokenId2.toString()
+          }
+        } catch {
+          return null;
+        }
+      }).filter(Boolean);
 
-            <span class="close">×</span>
+      // Show only games where the user is winner or loser
+      const myGames = parsed.filter(e => 
+        e && (e.winner === account.toLowerCase())
+      );
 
-            <h2 class="text-lg text-center mb-2 font-bold">Game Results</h2>
+      if (!myGames.length) {
+        resultsList.innerHTML = `<div class="text-center py-2 text-sm">No resolved games for your address.</div>`;
+        return;
+      }
 
-            <ul id="resultsModalList" class="space-y-2"></ul>
+      // Use cache so refresh doesn't stack
+      resultsCache = myGames.map(e => e.gameId);
 
-        </div>
+      resultsList.innerHTML = "";
+      myGames.forEach(e => {
+        const div = document.createElement("div");
+        div.className = "p-3 mb-3 border border-cyan-400 rounded";
+        div.innerHTML = `
+          <div class="text-xs mb-1 font-bold">Game #${e.gameId}</div>
+          <div class="text-xs mb-2">NFT ${e.tokenId1} vs ${e.tokenId2}</div>
+          <button class="neon-button w-full resolve-btn" 
+            data-win="true" 
+            data-token1="${e.tokenId1}" 
+            data-token2="${e.tokenId2}">▶️ Resolve</button>
+        `;
+        resultsList.appendChild(div);
+      });
 
-    </div>
+      document.querySelectorAll(".resolve-btn").forEach(btn => {
+        btn.onclick = () => {
+          const image1 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token1}.png`;
+          const image2 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token2}.png`;
+          playResultVideo("/win.mp4", "You Win!", image1, image2);
+        };
+      });
+    }
 
-    <!-- Video Overlay -->
+    function playResultVideo(src, text, image1, image2) {
+      animationNFTs.innerHTML = `
+        <img src="${image1}" alt="NFT1" class="w-16 h-16 mr-2 rounded border border-white">
+        <img src="${image2}" alt="NFT2" class="w-16 h-16 rounded border border-white">
+      `;
+      resultText.textContent = text;
+      resultVideo.src = src;
+      videoOverlay.classList.add("show");
+      resultVideo.play();
 
-    <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
-
-        <div class="relative">
-
-            <div id="animationNFTs"></div>
-
-            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted></video>
-
-            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
-
-        </div>
-
-    </div>
-
-    <!-- Loading Screen -->
-
-    <div id="loadingScreen" class="hide">
-
-        <div id="loadingText">Loading SketchyMilios...</div>
-
-    </div>
-
-    <!-- Results Button -->
-
-    <button id="resultsButton" class="neon-button">
-
-        Results
-
-        <span id="resultsNotification" class="hidden">0</span>
-
-    </button>
-
-    <script type="module" src="/abis.js"></script>
-
-    <script type="module" src="/ui.js"></script>
-
-    <script type="module" src="/app.js"></script>
-
-    <script>
-
-        document.getElementById('backButton').addEventListener('click', () => {
-
-            document.getElementById('gameInterface').classList.add('hidden');
-
-            document.getElementById('mainMenu').classList.remove('hidden');
-
-        });
-
-    </script>
-
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'969bd6781f8fdac1',t:'MTc1NDI4NzI2MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
-
+      resultVideo.onended = () => {
+        videoOverlay.classList.remove("show");
+        resultVideo.src = "";
+        animationNFTs.innerHTML = "";
+      };
+      videoOverlay.onclick = () => {
+        videoOverlay.classList.remove("show");
+        resultVideo.pause();
+        resultVideo.src = "";
+        animationNFTs.innerHTML = "";
+      }
+    }
+  </script>
+</body>
 </html>
