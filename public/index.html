@@ -1,115 +1,205 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎮 Sketchy Dapps 🎲</title>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.1/dist/socket.io.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        .neon-button {
-            background: #000;
-            color: #0ff;
-            border: 2px solid #0ff;
-            padding: 0.5rem 1rem;
-            border-radius: 0.25rem;
-            box-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff;
-            transition: all 0.3s;
-        }
-        .neon-button:hover {
-            background: #0ff;
-            color: #000;
-            box-shadow: 0 0 20px #0ff, 0 0 30px #0ff, 0 0 40px #0ff;
-        }
-    </style>
+
+    <title>Sketchy Flips - Arcade Playground</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="/styles.css">
+
 </head>
-<body class="bg-black text-white font-mono">
-    <div class="container mx-auto p-4">
-        <h1 class="text-3xl text-center mb-4">🎮 Sketchy Dapps 🎲</h1>
-        <p class="text-center mb-8">Fun, friends, NFTs!</p>
 
-        <div class="flex justify-center space-x-4 mb-8">
-            <a href="#" class="text-cyan-400 hover:underline">Bet-A-Sketchy</a>
-            <span>|</span>
-            <a href="#" class="text-cyan-400 hover:underline">Mymilio Daycare</a>
-        </div>
+<body class="text-black">
 
-        <div class="flex justify-center space-x-4 mb-8">
-            <a href="#" class="text-cyan-400 hover:underline">Home</a>
-        </div>
+    <!-- Header -->
 
-        <div class="max-w-md mx-auto bg-gray-900 p-6 rounded-lg shadow-lg">
-            <button id="connectWallet" class="neon-button w-full mb-4">🔌 Connect Wallet</button>
-            <p id="accountInfo" class="text-center mb-4">Account: Not connected</p>
+    <header class="w-full text-center py-2 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm">
 
-            <div class="mb-4">
-                <p class="text-sm">Selected NFT: <span id="selectedNFT">Your Sketchy</span></p>
-                <button id="selectNFTBtn" class="neon-button w-full mt-2">🎯 Select NFT</button>
+        <h1 class="text-xl md:text-2xl font-extrabold text-white">🎮 Sketchy Dapps 🎲</h1>
+
+        <p class="text-xs md:text-sm text-white">Fun, friends, NFTs!</p>
+
+    </header>
+
+    <!-- Main Menu -->
+
+    <div id="mainMenu" class="w-full max-w-2xl p-2 flex flex-col items-center justify-center">
+
+        <div class="flex flex-col sm:flex-row justify-center gap-2">
+
+            <div class="relative">
+
+                <button id="betButton" class="neon-button">Bet-A-Sketchy</button>
+
+                <button id="infoButton" class="info-button absolute -top-1 -right-1">i</button>
+
             </div>
 
-            <button id="createGameBtn" class="neon-button w-full mb-4">🎰 Create Game</button>
-            <button id="refreshResultsButton" class="neon-button w-full mt-2">🔄 Refresh Results</button>
+            <a href="daycare.html" class="neon-button">Mymilio Daycare</a>
 
-            <div class="mt-4">
-                <h2 class="text-lg">🎯 Open Games</h2>
-                <div id="openGames" class="mt-2"></div>
-            </div>
-
-            <p id="status" class="text-center mt-4">Status: Waiting...</p>
         </div>
 
-        <!-- About Modal -->
-        <div id="aboutModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center">
-            <div class="bg-gray-900 p-6 rounded-lg max-w-md">
-                <button class="text-red-500 float-right" onclick="this.parentElement.parentElement.classList.add('hidden')">×</button>
-                <h2 class="text-xl mb-4">About Bet-A-Sketchy</h2>
-                <p>50% chance PVP to win a Sketchy by betting one, verified by Gelato.</p>
-                <p class="mt-2">
-                    <a href="#" class="text-cyan-400 hover:underline">ABScan</a> |
-                    <a href="#" class="text-cyan-400 hover:underline">More Info</a>
-                </p>
-            </div>
-        </div>
-
-        <!-- NFT Selection Modal -->
-        <div id="nftModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center">
-            <div class="bg-gray-900 p-6 rounded-lg max-w-md">
-                <button class="text-red-500 float-right" onclick="this.parentElement.parentElement.classList.add('hidden')">×</button>
-                <h2 class="text-xl mb-4">Select NFT</h2>
-                <div id="nftGrid" class="grid grid-cols-3 gap-2"></div>
-            </div>
-        </div>
-
-        <!-- Results Modal -->
-        <div id="resultsModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center">
-            <div class="bg-gray-900 p-6 rounded-lg max-w-md">
-                <button class="text-red-500 float-right" onclick="this.parentElement.parentElement.classList.add('hidden')">×</button>
-                <h2 class="text-xl mb-4">Game Results</h2>
-                <div id="resultsList"></div>
-            </div>
-        </div>
-
-        <!-- Video Modal -->
-        <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center">
-            <div class="bg-gray-900 p-6 rounded-lg max-w-md">
-                <button class="text-red-500 float-right" onclick="this.parentElement.parentElement.classList.add('hidden')">×</button>
-                <div id="videoContent"></div>
-            </div>
-        </div>
-
-        <div class="fixed bottom-4 right-4">
-            <button id="resultsButton" class="neon-button relative">
-                Results
-                <span id="resultsCount" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full px-2 text-xs">0</span>
-            </button>
-        </div>
-
-        <div id="loadingScreen" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center">
-            <p>Loading SketchyMilios...</p>
-        </div>
     </div>
 
+    <!-- Game Interface -->
+
+    <div id="gameInterface" class="hidden w-full max-w-4xl p-2 flex flex-col gap-2 h-[calc(100vh-80px)]">
+
+        <!-- Back Button -->
+
+        <button id="backButton" class="neon-button w-full">Home</button>
+
+        <!-- Controls -->
+
+        <div class="w-full flex flex-col gap-2">
+
+            <button id="connectWallet" class="neon-button">🔌 Connect Wallet</button>
+
+            <p id="accountInfo" class="game-card p-1 text-center text-xs">Account: Not connected</p>
+
+            <div class="game-card p-2">
+
+                <label class="block font-bold text-xs mb-1">Selected NFT:</label>
+
+                <div id="selectedNFT" class="w-full p-1 rounded-lg border border-orange-500 bg-white text-center text-xs">Your Sketchy</div>
+
+                <button id="selectNFTBtn" disabled class="neon-button w-full mt-1">🎯 Select NFT</button>
+
+            </div>
+
+            <button id="createGameBtn" disabled class="neon-button w-full">🎰 Create Game</button>
+
+            <div class="game-card p-2 flex-grow">
+
+                <h2 class="text-sm text-center mb-1 font-bold">🎯 Open Games</h2>
+
+                <ul id="openGamesList" class="space-y-2 overflow-y-auto"></ul>
+
+            </div>
+
+            <div class="game-card p-2 text-center text-xs font-bold status-pulse">Status: <span id="status">Waiting...</span></div>
+
+        </div>
+
+    </div>
+
+    <!-- Info Modal -->
+
+    <div id="infoModal" class="modal">
+
+        <div class="modal-content">
+
+            <span class="close">×</span>
+
+            <h2 class="text-lg text-center mb-2 font-bold">About Bet-A-Sketchy</h2>
+
+            <p class="text-center text-xs">50% chance PVP to win a Sketchy by betting one, verified by Gelato.
+
+                <a href="https://abscan.org/address/0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6#code" target="_blank" class="text-blue-500 hover:underline">ABScan</a> |
+
+                <a href="/moreinfo.html" target="_blank" class="text-blue-500 hover:underline">More Info</a>
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <!-- NFT Selection Modal -->
+
+    <div id="nftModal" class="modal">
+
+        <div class="modal-content">
+
+            <span class="close">×</span>
+
+            <h2 class="text-lg text-center mb-2 font-bold">Select NFT</h2>
+
+            <div id="nftGrid" class="nft-grid"></div>
+
+        </div>
+
+    </div>
+
+    <!-- Results Modal -->
+
+    <div id="resultsModal" class="modal">
+
+        <div class="modal-content">
+
+            <span class="close">×</span>
+
+            <h2 class="text-lg text-center mb-2 font-bold">Game Results</h2>
+
+            <ul id="resultsModalList" class="space-y-2"></ul>
+
+        </div>
+
+    </div>
+
+    <!-- Video Overlay -->
+
+    <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
+
+        <div class="relative">
+
+            <div id="animationNFTs"></div>
+
+            <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted></video>
+
+            <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
+
+        </div>
+
+    </div>
+
+    <!-- Loading Screen -->
+
+    <div id="loadingScreen" class="hide">
+
+        <div id="loadingText">Loading SketchyMilios...</div>
+
+    </div>
+
+    <!-- Results Button -->
+
+    <button id="resultsButton" class="neon-button">
+
+        Results
+
+        <span id="resultsNotification" class="hidden">0</span>
+
+    </button>
+
+    <script type="module" src="/abis.js"></script>
+
+    <script type="module" src="/ui.js"></script>
+
     <script type="module" src="/app.js"></script>
-</body>
+
+    <script>
+
+        document.getElementById('backButton').addEventListener('click', () => {
+
+            document.getElementById('gameInterface').classList.add('hidden');
+
+            document.getElementById('mainMenu').classList.remove('hidden');
+
+        });
+
+    </script>
+
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'969bd6781f8fdac1',t:'MTc1NDI4NzI2MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+
 </html>
