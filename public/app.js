@@ -37,48 +37,6 @@ async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
     return null;
 }
 
-async function scanChainForResolvedGames() {
-    if (!account || !provider) return;
-    const contract = new ethers.Contract(gameAddress, gameABI, provider);
-    const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
-    const filter = {
-        address: gameAddress,
-        topics: [topic],
-        fromBlock: 0,
-        toBlock: 'latest'
-    };
-    try {
-        const logs = await provider.getLogs(filter);
-        const resolvedGamesOnChain = logs
-            .map(log => {
-                try {
-                    const event = contract.interface.parseLog(log);
-                    return {
-                        gameId: parseInt(log.topics[1] || '0'),
-                        winner: event.args.winner.toLowerCase(),
-                        tokenId1: event.args.tokenId1.toString(),
-                        tokenId2: event.args.tokenId2.toString(),
-                        resolved: true,
-                        userResolved: { [account.toLowerCase()]: false },
-                        viewed: { [account.toLowerCase()]: false },
-                        image1: `https://f005.backblazeb2.com/file/sketchymilios/${event.args.tokenId1}.png`,
-                        image2: `https://f005.backblazeb2.com/file/sketchymilios/${event.args.tokenId2}.png`
-                    };
-                } catch (e) {
-                    return null;
-                }
-            })
-            .filter(event => event && event.winner === account.toLowerCase());
-        if (resolvedGamesOnChain.length > 0) {
-            resolvedGames = [...resolvedGames, ...resolvedGamesOnChain];
-            updateResultsModal(resolvedGames, account);
-        }
-    } catch (err) {
-        console.error('Error scanning for resolved games:', err);
-        updateStatus('Error scanning blockchain for results.');
-    }
-}
-
 async function resolveGame(gameId) {
     if (isResolving) {
         console.log('Resolve already in progress, ignoring click for game:', gameId);
@@ -92,13 +50,15 @@ async function resolveGame(gameId) {
     isResolving = true;
     updateStatus('Checking blockchain for result...');
     try {
+        // Try to get the result directly from the blockchain (frontend, fastest!)
         const chainResult = await getGameWinnerOnChain(
             gameId,
             gameAddress,
             gameABI,
-            provider
+            provider // use your ethers.js provider (NOT signer)
         );
         if (chainResult) {
+            // Found winner on chain!
             const win = account && chainResult.winner === account.toLowerCase();
             updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
             playResultVideo(
@@ -117,8 +77,10 @@ async function resolveGame(gameId) {
             return;
         }
     } catch (err) {
+        // If there's an error querying chain, fallback to backend:
         console.error('Blockchain query error, falling back to backend:', err);
     }
+    // Fallback: let backend handle as before
     updateStatus('Loading... Checking game resolution...');
     socket.emit('resolveGame', { gameId, account });
     setTimeout(() => {
@@ -160,7 +122,6 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
         await fetchUserTokens(true);
         updateStatus('Connected! Fetching games...');
         socket.emit('fetchResolvedGames', { account });
-        await scanChainForResolvedGames();
     } catch (error) {
         console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
@@ -168,15 +129,6 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
             updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
         }
     }
-});
-
-document.getElementById('refreshResultsButton').addEventListener('click', async () => {
-    if (!account || !provider) {
-        updateStatus('Connect wallet first.');
-        return;
-    }
-    updateStatus('Refreshing results from blockchain...');
-    await scanChainForResolvedGames();
 });
 
 document.getElementById('createGameBtn').addEventListener('click', async () => {
@@ -322,17 +274,20 @@ socket.on('resolvedGames', (games) => {
 socket.on('gameResolution', async (data) => {
     console.log('Received gameResolution:', data);
     if (data.error) {
+        // Handle transient errors by retrying
         if (data.error === 'Game not resolved or no winner') {
             console.log(`Game ${data.gameId} not yet resolved, retrying...`);
             setTimeout(() => {
                 socket.emit('fetchResolvedGames', { account });
-            }, 3000);
-            return;
+            }, 3000); // Retry after 3 seconds
+            return; // Keep loading state, don’t show error
         }
+        // Definitive errors (e.g., game not found)
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
         isResolving = false;
         return;
     }
+    // Game resolved successfully
     isResolving = false;
     const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
     updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
@@ -345,6 +300,7 @@ socket.on('gameResolution', async (data) => {
     if (account) {
         socket.emit('markGameResolved', { gameId: data.gameId, account });
     }
+    // Fetch the latest unresolved games from backend
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
 });
