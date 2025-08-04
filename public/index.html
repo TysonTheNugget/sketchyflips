@@ -74,9 +74,9 @@
         </div>
     </div>
     <!-- Video Overlay -->
-    <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70 hidden">
+    <div id="videoOverlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-70">
         <div class="relative">
-            <div id="animationNFTs"></div>
+            <div id="animationNFTs" class="flex justify-center mb-2"></div>
             <video id="resultVideo" class="max-w-full max-h-64 rounded-lg border border-orange-500" playsinline muted autoplay></video>
             <div id="resultText" class="absolute inset-0 flex items-center justify-center text-white text-3xl font-bold" style="text-shadow: 1px 1px 3px black;"></div>
         </div>
@@ -104,7 +104,8 @@
     <script>
         const gameAddress = "0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6";
         const gameABI = [
-            "event GameResolved(uint256 gameId, address winner, uint256 tokenId1, uint256 tokenId2)"
+            "event GameResolved(uint256 gameId, address winner, uint256 tokenId1, uint256 tokenId2)",
+            "function games(uint256) view returns (address player1, address player2, uint256 tokenId1, uint256 tokenId2, uint256 betAmount, address winner)"
         ];
         let provider, account;
         const resultsButton = document.getElementById("newResultsButton");
@@ -117,7 +118,6 @@
         const animationNFTs = document.getElementById("animationNFTs");
 
         resultsButton.addEventListener("click", async () => {
-            // Check for provider/account
             if (!window.ethereum) {
                 alert("Please install MetaMask!");
                 return;
@@ -128,9 +128,7 @@
                 account = await provider.getSigner().getAddress();
                 document.getElementById("accountInfo").textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
             }
-            // Show modal
             resultsModal.style.display = "flex";
-            // Add scrollable area and a refresh button
             resultsList.innerHTML = `
                 <div class="mb-2 flex justify-end">
                     <button id="refreshResults" class="neon-button">🔄 Refresh</button>
@@ -141,12 +139,21 @@
             document.getElementById("refreshResults").onclick = fetchAndShowResults;
         });
 
-        // Allow modal to be closed by clicking X or outside
         closeResultsModal.onclick = () => {
             resultsModal.style.display = "none";
+            videoOverlay.classList.add("hidden");
+            resultVideo.pause();
+            resultVideo.src = "";
+            animationNFTs.innerHTML = "";
         };
         window.addEventListener("mousedown", (e) => {
-            if (e.target === resultsModal) resultsModal.style.display = "none";
+            if (e.target === resultsModal) {
+                resultsModal.style.display = "none";
+                videoOverlay.classList.add("hidden");
+                resultVideo.pause();
+                resultVideo.src = "";
+                animationNFTs.innerHTML = "";
+            }
         });
 
         async function fetchAndShowResults() {
@@ -160,33 +167,42 @@
                     toBlock: "latest",
                     topics: [ethers.utils.id("GameResolved(uint256,address,uint256,uint256)")]
                 });
-                const parsed = logs.map(log => {
+                const games = await Promise.all(logs.map(async (log) => {
                     try {
                         const data = contract.interface.parseLog(log);
+                        const gameId = data.args.gameId.toString();
+                        const gameData = await contract.games(gameId);
                         return {
-                            gameId: data.args.gameId.toString(),
+                            gameId,
                             winner: data.args.winner.toLowerCase(),
                             tokenId1: data.args.tokenId1.toString(),
-                            tokenId2: data.args.tokenId2.toString()
-                        }
+                            tokenId2: data.args.tokenId2.toString(),
+                            player1: gameData.player1.toLowerCase(),
+                            player2: gameData.player2.toLowerCase()
+                        };
                     } catch {
                         return null;
                     }
-                }).filter(Boolean);
-                const myGames = parsed.filter(e => account); // Include all games for the user
+                }));
+                const myGames = games.filter(game => game && (game.player1 === account.toLowerCase() || game.player2 === account.toLowerCase()));
                 if (!myGames.length) {
                     scrollable.innerHTML = `<div class="text-xs text-center py-4">No resolved games for your address.</div>`;
                     return;
                 }
                 scrollable.innerHTML = "";
-                myGames.forEach(e => {
-                    const isWinner = account && e.winner === account.toLowerCase();
+                myGames.forEach(game => {
+                    const isWinner = account && game.winner === account.toLowerCase();
                     const li = document.createElement("li");
                     li.className = "bg-white bg-opacity-10 p-2 rounded flex flex-col items-center border border-orange-400";
                     li.innerHTML = `
-                        <div class="font-bold text-xs mb-1">Game #${e.gameId}</div>
-                        <div class="text-xs mb-1">NFT ${e.tokenId1} vs ${e.tokenId2}</div>
-                        <button class="neon-button mt-1 resolveBtn" data-token1="${e.tokenId1}" data-token2="${e.tokenId2}" data-is-winner="${isWinner}"> ▶️ Resolve </button>
+                        <div class="font-bold text-xs mb-1">Game #${game.gameId}</div>
+                        <div class="text-xs mb-1 flex items-center">
+                            <img src="https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png" alt="NFT1" class="w-8 h-8 mr-2 rounded border border-white">
+                            <span>vs</span>
+                            <img src="https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png" alt="NFT2" class="w-8 h-8 ml-2 rounded border border-white">
+                        </div>
+                        <div class="text-xs mb-1">${isWinner ? 'Won' : 'Lost'}</div>
+                        <button class="neon-button mt-1 resolveBtn" data-token1="${game.tokenId1}" data-token2="${game.tokenId2}" data-is-winner="${isWinner}"> ▶️ Resolve </button>
                     `;
                     scrollable.appendChild(li);
                 });
@@ -195,11 +211,12 @@
                         const image1 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token1}.png`;
                         const image2 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token2}.png`;
                         const isWinner = btn.dataset.isWinner === "true";
-                        playResultVideo(isWinner ? "/win.mp4" : "/lose.mp4", isWinner ? "You Win!" : "You Lose!", image1, image2);
+                        playResultVideo(isWinner ? "/public/videos/win.mp4" : "/public/videos/lose.mp4", isWinner ? "You Win!" : "You Lose!", image1, image2);
                     };
                 });
             } catch (err) {
                 scrollable.innerHTML = `<div class="text-xs text-center py-4 text-red-500">Failed to fetch results.</div>`;
+                console.error("Error fetching GameResolved events:", err);
             }
         }
 
@@ -209,7 +226,7 @@
                 <img src="${image2}" alt="NFT2" class="w-16 h-16 rounded border border-white">
             `;
             resultText.textContent = text;
-            resultVideo.src = ""; // Reset source to avoid caching
+            resultVideo.src = "";
             resultVideo.src = src;
             videoOverlay.classList.remove("hidden");
             resultVideo.play().catch(err => {
