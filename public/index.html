@@ -195,7 +195,7 @@
                         const image1 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token1}.png`;
                         const image2 = `https://f005.backblazeb2.com/file/sketchymilios/${btn.dataset.token2}.png`;
                         const isWinner = btn.dataset.isWinner === "true";
-                        playResultVideo(isWinner ? "/public/win.mp4" : "/public/lose.mp4", isWinner ? "You Win!" : "You Lose!", image1, image2);
+                        playResultVideo(isWinner ? "/win.mp4" : "/lose.mp4", isWinner ? "You Win!" : "You Lose!", image1, image2);
                     };
                 });
             } catch (err) {
