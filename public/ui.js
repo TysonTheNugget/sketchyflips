@@ -1,13 +1,10 @@
 let uiOptions = null;
-
 let isPlayingResultVideo = false;
-
 let lastResolvedGames, lastAccount, lastResolveGame;
 
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
-   
-    // Modal event listeners
+
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
         document.getElementById('infoModal').style.display = 'block';
@@ -16,7 +13,7 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
     document.getElementById('betButton').addEventListener('click', () => {
         console.log('Bet-A-Sketchy clicked, showing game interface');
         document.getElementById('mainMenu').classList.add('hidden');
-        document.getElementById('gameInterface').classList.remove('hidden');
+        document.getElementById('gameControls').classList.remove('hidden');
     });
 
     document.getElementById('selectNFTBtn').addEventListener('click', () => {
@@ -30,6 +27,16 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         console.log('Results button clicked, opening modal');
         updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
         document.getElementById('resultsModal').style.display = 'block';
+    });
+
+    document.getElementById('refreshResultsBtn').addEventListener('click', () => {
+        socket.emit('fetchResolvedGames', { account: getAccount() });
+        updateStatus('Refreshing game history...');
+    });
+
+    document.getElementById('refreshHistoryBtn').addEventListener('click', () => {
+        socket.emit('fetchResolvedGames', { account: getAccount() });
+        updateStatus('Refreshing game history...');
     });
 
     document.getElementById('infoModal').querySelector('.close').onclick = () => {
@@ -49,6 +56,22 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         document.getElementById('resultsModal').style.display = 'none';
     };
 
+    document.getElementById('closeVideoBtn').addEventListener('click', () => {
+        console.log('Closing video overlay');
+        const overlay = document.getElementById('videoOverlay');
+        overlay.classList.remove('fade-in');
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+            overlay.classList.remove('fade-out');
+            document.getElementById('animationNFTs').innerHTML = '';
+            isPlayingResultVideo = false;
+            if (lastResolvedGames && lastAccount && lastResolveGame) {
+                updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
+            }
+        }, 800);
+    });
+
     window.onclick = (event) => {
         if (event.target === document.getElementById('infoModal')) {
             document.getElementById('infoModal').style.display = 'none';
@@ -63,6 +86,21 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
                 socket.emit('markGamesViewed', { account: currentAccount, gameIds: getResolvedGames().map(g => g.gameId) });
             }
             document.getElementById('resultsModal').style.display = 'none';
+        }
+        if (event.target === document.getElementById('videoOverlay')) {
+            console.log('Clicked outside video overlay');
+            const overlay = document.getElementById('videoOverlay');
+            overlay.classList.remove('fade-in');
+            overlay.classList.add('fade-out');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('fade-out');
+                document.getElementById('animationNFTs').innerHTML = '';
+                isPlayingResultVideo = false;
+                if (lastResolvedGames && lastAccount && lastResolveGame) {
+                    updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
+                }
+            }, 800);
         }
     };
 }
@@ -86,163 +124,140 @@ export function updateStatus(message) {
     document.getElementById('status').textContent = message;
 }
 
-export function formatTimeRemaining(seconds) {
-    if (seconds <= 0) return 'Now';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours > 0 ? hours + 'h ' : ''}${minutes > 0 ? minutes + 'm ' : ''}${secs}s`;
-}
-
-export function displayNFTsInModal(userTokens) {
-    console.log('Displaying NFTs in modal, count:', userTokens.length);
-    const nftGrid = document.getElementById('nftGrid');
-    nftGrid.innerHTML = '';
-    if (userTokens.length === 0) {
-        nftGrid.innerHTML = '<p class="text-center text-xs">No NFTs available</p>';
+export function displayNFTsInModal(tokens) {
+    const nftList = document.getElementById('nftList');
+    nftList.innerHTML = '';
+    if (!tokens || tokens.length === 0) {
+        nftList.innerHTML = '<p class="text-white text-sm">No Sketchys found in your wallet/Connect Wallet.</p>';
         return;
     }
-    userTokens.forEach(token => {
-        console.log('Creating NFT item for token ID:', token.id);
+    tokens.forEach(tokenId => {
         const div = document.createElement('div');
-        div.className = 'nft-item';
-        const img = document.createElement('img');
-        img.src = token.image;
-        img.alt = `NFT #${token.id}`;
-        img.style.pointerEvents = 'none';
-        const p = document.createElement('p');
-        p.className = 'text-xs';
-        p.textContent = `#${token.id}`;
-        div.appendChild(img);
-        div.appendChild(p);
-        div.addEventListener('click', (e) => {
-            e.stopPropagation();
-            console.log('NFT clicked:', token.id);
-            selectNFT(token.id, token.image);
-        });
-        nftGrid.appendChild(div);
+        div.className = `nft-item ${tokenId === uiOptions.getSelectedTokenId?.() ? 'border-blue-500' : ''}`;
+        div.innerHTML = `
+            <img src="https://f005.backblazeb2.com/file/sketchymilios/${tokenId}.png" alt="Mymilio #${tokenId}" class="w-full max-w-[100px] object-contain rounded" loading="lazy">
+            <p class="mt-1 text-white text-sm">Mymilio #${tokenId}</p>
+        `;
+        div.querySelector('img').onerror = () => {
+            div.querySelector('img').src = 'https://via.placeholder.com/32x32?text=NF';
+            div.innerHTML += '<p class="text-red-500 text-xs status-pulse">Image failed to load</p>';
+        };
+        div.onclick = () => {
+            uiOptions.setSelectedTokenId(tokenId);
+        };
+        nftList.appendChild(div);
     });
 }
 
-export function selectNFT(tokenId, image) {
-    console.log('Selecting NFT with ID:', tokenId);
-    if (uiOptions && uiOptions.setSelectedTokenId) {
-        uiOptions.setSelectedTokenId(tokenId);
+export function selectNFT(tokenId) {
+    const nftText = document.getElementById('nftText');
+    const nftImage = document.getElementById('nftImage');
+    if (tokenId) {
+        nftText.textContent = `Mymilio #${tokenId}`;
+        nftImage.src = `https://f005.backblazeb2.com/file/sketchymilios/${tokenId}.png`;
+        nftImage.classList.remove('hidden');
+        nftImage.onerror = () => {
+            nftImage.src = 'https://via.placeholder.com/32x32?text=NF';
+        };
     } else {
-        console.error('setSelectedTokenId is not available');
+        nftText.textContent = 'Your Sketchy';
+        nftImage.classList.add('hidden');
     }
-    document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
-    document.getElementById('nftModal').style.display = 'none';
 }
 
-export function updateOpenGames(games, account) {
-    console.log('Updating open games list with:', games);
+export function updateOpenGames(games, account, joinGame) {
     const openGamesList = document.getElementById('openGamesList');
     openGamesList.innerHTML = '';
     if (!games || games.length === 0) {
-        console.log('No open games to display');
-        openGamesList.innerHTML = '<li class="text-center text-xs opacity-70">No open games.</li>';
+        openGamesList.innerHTML = '<p class="yellow-info">No open games available. Create one to start!</p>';
         return;
     }
     games.forEach(game => {
-        console.log('Rendering game:', game.id, 'Player:', game.player1, 'Token:', game.tokenId1);
-        const isMine = account && game.player1.toLowerCase() === account.toLowerCase();
-        const currentTime = Math.floor(Date.now() / 1000);
-        const timeUntilCancel = Number(game.createTimestamp) + 3600 - currentTime;
-        const canCancel = isMine && timeUntilCancel <= 0;
-        let actionButton = '';
-        if (isMine) {
-            actionButton = canCancel
-                ? `<button class="neon-button py-0.5 px-1 text-xs cancel-game-btn" data-game-id="${game.id}">Cancel</button>`
-                : `<span class="text-xs opacity-70">Cancel in ${formatTimeRemaining(timeUntilCancel)}</span>`;
-        } else if (account) {
-            actionButton = `<button class="neon-button py-0.5 px-1 text-xs join-game-btn" data-game-id="${game.id}">Join</button>`;
-        } else {
-            actionButton = `<span class="text-xs opacity-70">Connect wallet to join</span>`;
-        }
-        const li = document.createElement('li');
-        li.className = 'game-card p-2 flex justify-between items-center';
-        li.innerHTML = `
-            <div class="flex items-center">
-                <img src="${game.image}" alt="NFT #${game.tokenId1}" class="w-8 h-8 mr-2 rounded shadow border border-orange-500">
+        const isCreator = game.player1?.toLowerCase() === account?.toLowerCase();
+        const isJoined = game.player2?.toLowerCase() === account?.toLowerCase();
+        const isResolved = uiOptions.getResolvedGames().some(g => g.gameId === game.gameId);
+        const div = document.createElement('div');
+        div.className = 'yellow-info flex flex-row items-center justify-between px-3 py-2 my-1';
+        div.style = 'min-width: 320px; width: 100%; max-width: 450px';
+        div.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <img src="https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png" alt="Mymilio #${game.tokenId1}" class="w-12 h-12 object-contain rounded" loading="lazy">
                 <div>
-                    <span class="font-bold text-xs">Game #${game.id}</span><br>
-                    <span class="text-xs opacity-70">NFT #${game.tokenId1} | ${game.createdAt}</span>
+                    <p class="text-black text-xs font-bold mb-1">Game #${game.gameId}</p>
+                    <p class="text-black text-xs font-bold mb-1">Player 1: ${game.player1 ? `${game.player1.slice(0, 6)}...${game.player1.slice(-4)}` : 'Loading...'}</p>
+                    ${isCreator && !isJoined && !isResolved ? '<p class="text-yellow-500 text-xs status-pulse">You created this game</p>' : ''}
+                    ${isResolved ? '<p class="text-green-500 text-xs status-pulse">Game Completed</p>' : ''}
                 </div>
             </div>
-            ${actionButton}`;
-        openGamesList.appendChild(li);
-    });
-    // Add event listeners for dynamically created buttons
-    document.querySelectorAll('.join-game-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            const gameId = button.getAttribute('data-game-id');
-            window.joinGameFromList(gameId);
-        });
-    });
-    document.querySelectorAll('.cancel-game-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            const gameId = button.getAttribute('data-game-id');
-            window.cancelUnjoinedFromList(gameId);
-        });
+            ${isResolved ? '<button class="neon-button text-sm py-1 px-2 view-game-btn" data-game-id="${game.gameId}">View</button>' : 
+                `<button class="neon-button text-sm py-1 px-2 join-game-btn" data-game-id="${game.gameId}" ${!uiOptions.getSelectedTokenId?.() || isCreator || isJoined ? 'disabled' : ''} 
+                    title="${isCreator ? 'You cannot join your own game' : !uiOptions.getSelectedTokenId?.() ? 'Select an NFT first' : isJoined ? 'You have already joined this game' : ''}">
+                    ${isJoining && uiOptions.getSelectedGameId?.() === game.gameId ? 'Joining...' : 'Join'}
+                </button>`}
+        `;
+        div.querySelector('img').onerror = () => {
+            div.querySelector('img').src = 'https://via.placeholder.com/32x32?text=NF';
+        };
+        if (!isResolved) {
+            const joinButton = div.querySelector('.join-game-btn');
+            if (joinButton) {
+                joinButton.onclick = () => {
+                    joinGame(game.gameId);
+                };
+            }
+        } else {
+            const viewButton = div.querySelector('.view-game-btn');
+            if (viewButton) {
+                viewButton.onclick = () => {
+                    document.getElementById('resultsButton').click();
+                };
+            }
+        }
+        openGamesList.appendChild(div);
     });
 }
 
-export function updateResultsModal(resolvedGames, account, resolveGame) {
-    lastResolvedGames = resolvedGames;
+export function updateResultsModal(games, account, resolveGame) {
+    lastResolvedGames = games;
     lastAccount = account;
     lastResolveGame = resolveGame;
-    console.log('Updating results modal with:', resolvedGames);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
-    if (!account) {
-        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">Connect wallet to view games.</li>';
-        document.getElementById('resultsNotification').classList.add('hidden');
+    const resultsNotification = document.getElementById('resultsNotification');
+    const unresolvedCount = games.filter(g => !g.resolved || !g.userResolved[account?.toLowerCase() || '']).length;
+    resultsNotification.textContent = unresolvedCount;
+    resultsNotification.className = unresolvedCount > 0 ? '' : 'hidden';
+    if (games.length === 0) {
+        resultsModalList.innerHTML = '<p class="text-white text-sm">No game history available.</p>';
         return;
     }
-    const accountLower = account?.toLowerCase() || '';
-    const userGames = resolvedGames.filter(game =>
-        (game.player1.toLowerCase() === accountLower ||
-         (game.player2 && game.player2.toLowerCase() === accountLower))
-    );
-    const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[accountLower]).length;
-    document.getElementById('resultsButton').classList.remove('hidden');
-    if (userGames.length === 0) {
-        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No games.</li>';
-        document.getElementById('resultsNotification').classList.add('hidden');
-        return;
-    }
-    document.getElementById('resultsNotification').textContent = unviewedCount || '0';
-    if (unviewedCount > 0) {
-        document.getElementById('resultsNotification').classList.remove('hidden');
-    } else {
-        document.getElementById('resultsNotification').classList.add('hidden');
-    }
-    userGames.forEach(game => {
-        let buttonText = '';
-        let disabled = '';
-        if (!game.resolved) {
-            buttonText = 'Pending';
-            disabled = 'disabled';
-        } else if (!game.userResolved[accountLower]) {
-            buttonText = 'Resolve';
-        } else {
-            buttonText = 'Replay';
-        }
-        const resolveButton = `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>`;
-        const li = document.createElement('li');
-        li.className = 'game-card p-2 flex justify-between items-center';
+    games.forEach(game => {
+        const li = document.createElement('div');
+        li.className = 'game-card flex items-center space-x-2 p-2';
+        const resolveButton = !game.resolved || !game.userResolved[account?.toLowerCase() || ''] ? 
+            `<button class="neon-button text-xs py-1 px-2 mt-1 resolve-game-btn" data-game-id="${game.gameId}">Resolve</button>` : '';
         li.innerHTML = `
-            <div>
-                <div class="font-bold text-xs">Game #${game.gameId}</div>
-                <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
-                <div class="text-xs opacity-70">Created: ${new Date(Number(game.createTimestamp) * 1000).toLocaleString()}</div>
-                ${game.joinTimestamp && Number(game.joinTimestamp) > 0 ? `<div class="text-xs opacity-70">Joined: ${new Date(Number(game.joinTimestamp) * 1000).toLocaleString()}</div>` : ''}
+            <img src="https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png" alt="Mymilio #${game.tokenId1}" class="w-8 h-8 object-contain rounded">
+            <img src="https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png" alt="Mymilio #${game.tokenId2}" class="w-8 h-8 object-contain rounded">
+            <div class="flex-1">
+                <p class="text-white text-sm">
+                    Game #${game.gameId}: ${game.resolved ? 
+                        `<span class="${game.winner === account?.toLowerCase() ? 'text-green-500' : 'text-red-500'}">
+                            You ${game.winner === account?.toLowerCase() ? 'Win' : 'Lose'}!
+                        </span>` : 
+                        'Result Pending'}
+                </p>
+                <p class="text-gray-400 text-xs">Date: ${new Date(Number(game.joinTimestamp || game.createTimestamp) * 1000).toLocaleString()}</p>
+                ${resolveButton}
             </div>
-            ${resolveButton}`;
+        `;
+        li.querySelectorAll('img').forEach(img => {
+            img.onerror = () => {
+                img.src = 'https://via.placeholder.com/32x32?text=NF';
+            };
+        });
         resultsModalList.appendChild(li);
     });
-    // Add event listeners for resolve buttons
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             if (!uiOptions.getAccount()) {
@@ -252,17 +267,21 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
             }
             const gameId = button.getAttribute('data-game-id');
             const game = uiOptions.getResolvedGames().find(g => g.gameId === gameId);
-            if (!game || !game.resolved) return;
-            const isReplay = game.userResolved[uiOptions.getAccount().toLowerCase()];
-            const win = game.winner === uiOptions.getAccount().toLowerCase();
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4',
-                win ? 'You Win!' : 'You Lose!',
-                game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
-                game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
-            );
-            if (!isReplay) {
-                socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
+            if (!game) return;
+            if (!game.resolved) {
+                resolveGame(gameId);
+            } else {
+                const isReplay = game.userResolved[uiOptions.getAccount().toLowerCase()];
+                const win = game.winner === uiOptions.getAccount().toLowerCase();
+                playResultVideo(
+                    win ? '/win.mp4' : '/lose.mp4',
+                    win ? 'You Win!' : 'You Lose!',
+                    game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
+                    game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
+                );
+                if (!isReplay) {
+                    socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
+                }
             }
         });
     });
@@ -275,14 +294,16 @@ export function playResultVideo(src, text, image1, image2) {
     const overlay = document.getElementById('videoOverlay');
     const resultText = document.getElementById('resultText');
     const animationNFTs = document.getElementById('animationNFTs');
+    const videoError = document.getElementById('videoError');
     const validImage1 = image1 && image1 !== 'undefined' ? image1 : 'https://via.placeholder.com/64';
     const validImage2 = image2 && image2 !== 'undefined' ? image2 : 'https://via.placeholder.com/64';
     animationNFTs.innerHTML = `
-        <img src="${validImage1}" alt="NFT1" onerror="this.src='https://via.placeholder.com/64';">
-        <img src="${validImage2}" alt="NFT2" onerror="this.src='https://via.placeholder.com/64';">
+        <img src="${validImage1}" alt="NFT1" class="w-12 h-12 rounded" onerror="this.src='https://via.placeholder.com/64';">
+        <img src="${validImage2}" alt="NFT2" class="w-12 h-12 rounded" onerror="this.src='https://via.placeholder.com/64';">
     `;
     video.src = src;
     resultText.textContent = text;
+    videoError.className = 'text-red-500 text-xs mt-1 text-center status-pulse hidden';
     overlay.classList.remove('hidden', 'fade-out');
     setTimeout(() => {
         overlay.classList.add('fade-in');
@@ -290,17 +311,19 @@ export function playResultVideo(src, text, image1, image2) {
     video.play().catch(error => {
         console.error('Error playing video:', error);
         updateStatus(`Error playing result video: ${error.message}`);
+        videoError.textContent = `Error playing result video: ${error.message}`;
+        videoError.className = 'text-red-500 text-xs mt-1 text-center status-pulse';
         overlay.classList.remove('fade-in');
         overlay.classList.add('fade-out');
         setTimeout(() => {
             overlay.classList.add('hidden');
             overlay.classList.remove('fade-out');
             animationNFTs.innerHTML = '';
+            isPlayingResultVideo = false;
+            if (lastResolvedGames && lastAccount && lastResolveGame) {
+                updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
+            }
         }, 800);
-        isPlayingResultVideo = false;
-        if (lastResolvedGames && lastAccount && lastResolveGame) {
-            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-        }
     });
     video.onended = () => {
         console.log('Video ended, hiding overlay');
@@ -310,10 +333,10 @@ export function playResultVideo(src, text, image1, image2) {
             overlay.classList.add('hidden');
             overlay.classList.remove('fade-out');
             animationNFTs.innerHTML = '';
+            isPlayingResultVideo = false;
+            if (lastResolvedGames && lastAccount && lastResolveGame) {
+                updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
+            }
         }, 800);
-        isPlayingResultVideo = false;
-        if (lastResolvedGames && lastAccount && lastResolveGame) {
-            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-        }
     };
 }

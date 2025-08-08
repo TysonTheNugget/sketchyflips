@@ -12,8 +12,8 @@ body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     display: flex;
     flex-direction: column;
-    text-align: center; /* Centers all text by default (inherits to h1, p, etc.) */
-    align-items: center; /* Centers flex children horizontally (e.g., divs with limited width) */
+    text-align: center;
+    align-items: center;
 }
 @media (max-width: 768px) {
     html, body {
@@ -25,24 +25,29 @@ body {
     }
 }
 .neon-button {
-    background: linear-gradient(to bottom, #ffeb3b, #ffc107); /* MODIFIED: Softer gradient for a brighter, more vibrant iOS-like pop */
+    background: linear-gradient(to bottom, #ffeb3b, #ffc107);
     color: black;
     font-weight: bold;
-    border-radius: 1.5rem; /* MODIFIED: Increased for more bubbly, rounded corners like iOS buttons */
-    padding: 0.6rem 1.2rem; /* MODIFIED: Increased vertical padding for less "thin" feel; balanced horizontal to avoid "wide" stretch */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5); /* MODIFIED: Added subtle outer shadow for depth and inner glow for bubbly shine */
-    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease; /* MODIFIED: Smoother, longer transition; added background for fade effect */
-    font-size: 0.9rem; /* MODIFIED: Slightly larger font for better readability and iOS feel */
-    border: none; /* MODIFIED: Removed border for cleaner, smoother look (iOS buttons often borderless) */
+    border-radius: 1.5rem;
+    padding: 0.6rem 1.2rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+    font-size: 0.9rem;
+    border: none;
     cursor: pointer;
     pointer-events: auto;
-    will-change: transform, box-shadow; /* NEW: Improves smoothness on hover/animations */
-    -webkit-font-smoothing: antialiased; /* NEW: Smoother text rendering, like iOS */
+    will-change: transform, box-shadow;
+    -webkit-font-smoothing: antialiased;
 }
 .neon-button:hover {
-    transform: scale(1.08); /* MODIFIED: Slightly larger scale for more "pop" on hover */
-    box-shadow: 0 6px 12px rgba(255, 152, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6); /* MODIFIED: Enhanced shadow for depth and glow */
-    background: linear-gradient(to bottom, #fff59d, #ffb74d); /* NEW: Lighter gradient on hover for a bright, popping effect */
+    transform: scale(1.08);
+    box-shadow: 0 6px 12px rgba(255, 152, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    background: linear-gradient(to bottom, #fff59d, #ffb74d);
+}
+.neon-button:disabled {
+    background: linear-gradient(to bottom, #ccc, #aaa);
+    cursor: not-allowed;
+    box-shadow: none;
 }
 .game-card {
     background: white;
@@ -50,7 +55,7 @@ body {
     border: 1px solid #ff9800;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease;
-    text-align: left; /* Overrides body centering for game cards to keep internal text left-aligned if desired */
+    text-align: left;
 }
 .game-card:hover {
     transform: translateY(-3px);
@@ -64,97 +69,79 @@ body {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.4);
-    padding-top: 40px;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+.modal.show, .modal.fade-in {
+    display: block;
 }
 .modal-content {
-    background-color: #fefefe;
-    margin: 5% auto;
-    padding: 10px;
-    width: 90%;
-    max-width: 400px;
-    border-radius: 0.75rem;
+    background: linear-gradient(to bottom, #ffffff, #f0f0f0);
+    margin: 15% auto;
+    padding: 20px;
     border: 1px solid #ff9800;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-    position: relative;
-    z-index: 51;
+    border-radius: 0.75rem;
+    width: 80%;
+    max-width: 500px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.bg-image-box {
+    background: linear-gradient(to bottom, #ffffff, #e0e0e0);
+    border: 1px solid #ff9800;
 }
 .close {
     color: #aaa;
     float: right;
-    font-size: 20px;
+    font-size: 28px;
     font-weight: bold;
     cursor: pointer;
 }
-.close:hover,
-.close:focus {
-    color: black;
-    text-decoration: none;
+.close:hover {
+    color: #000;
 }
 .nft-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-    gap: 0.5rem;
-    pointer-events: auto;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
 }
 .nft-item {
     cursor: pointer;
-    text-align: center;
-    transition: transform 0.2s ease;
-    pointer-events: auto;
-    z-index: 52;
-}
-.nft-item:hover {
-    transform: scale(1.05);
-}
-.nft-item img {
-    width: 100%;
-    height: auto;
+    border: 2px solid transparent;
     border-radius: 0.5rem;
-    border: 1px solid #ff9800;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 5px;
 }
-#videoOverlay {
-    opacity: 0;
-    transition: opacity 0.8s ease-in-out;
-    z-index: 70;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+.nft-item.border-blue-500 {
+    border-color: #3b82f6;
 }
-#videoOverlay.fade-in {
-    opacity: 1;
-}
-#videoOverlay.fade-out {
-    opacity: 0;
-}
-.info-button {
-    background-color: #ff9800;
-    color: white;
-    font-weight: bold;
-    border-radius: 50%;
-    width: 1rem;
-    height: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease;
-    font-size: 0.6rem;
-    border: 1px solid #fff;
-}
-.info-button:hover {
-    transform: scale(1.1);
+.yellow-info {
+    background: linear-gradient(to bottom, #ffeb3b, #ffc107);
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    color: black;
 }
 .status-pulse {
-    animation: pulse 2s infinite;
+    animation: pulse 1.5s infinite;
 }
 @keyframes pulse {
     0% { opacity: 1; }
-    50% { opacity: 0.7; }
+    50% { opacity: 0.5; }
     100% { opacity: 1; }
+}
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+.fade-out {
+    animation: fadeOut 0.5s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+.hidden {
+    display: none;
 }
 #loadingScreen {
     position: fixed;
@@ -162,12 +149,11 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.8);
+    background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 100;
-    opacity: 0;
     transition: opacity 0.5s ease-in-out;
 }
 #loadingScreen.show {
@@ -273,13 +259,11 @@ body {
     border-radius: 0.5rem;
     border: 1px solid #ff9800;
 }
-/* Center the game interface container */
 #gameInterface {
-    max-width: 480px; /* Adjust as needed for your design; prevents full-width stretch */
+    max-width: 480px;
     margin: 0 auto;
-    padding: 1rem; /* Adds some breathing room around the edges */
+    padding: 1rem;
 }
-/* Optional override for specific elements that should remain left-aligned */
-.space-y-4 { /* Targets the div inside #gameInterface */
-    text-align: left; /* If you want lists/buttons left-aligned within the centered container */
+.space-y-4 {
+    text-align: left;
 }
