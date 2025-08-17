@@ -1,13 +1,9 @@
 let uiOptions = null;
-
 let isPlayingResultVideo = false;
-
-let lastResolvedGames, lastAccount, lastResolveGame;
 
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
    
-    // Modal event listeners
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
         document.getElementById('infoModal').style.display = 'block';
@@ -173,7 +169,6 @@ export function updateOpenGames(games, account) {
             ${actionButton}`;
         openGamesList.appendChild(li);
     });
-    // Add event listeners for dynamically created buttons
     document.querySelectorAll('.join-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             const gameId = button.getAttribute('data-game-id');
@@ -189,60 +184,51 @@ export function updateOpenGames(games, account) {
 }
 
 export function updateResultsModal(resolvedGames, account, resolveGame) {
-    lastResolvedGames = resolvedGames;
-    lastAccount = account;
-    lastResolveGame = resolveGame;
     console.log('Updating results modal with:', resolvedGames);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
     if (!account) {
         resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">Connect wallet to view games.</li>';
-        document.getElementById('resultsNotification').classList.add('hidden');
+        document.getElementById('resultsNotification').textContent = '';
         return;
     }
-    const accountLower = account?.toLowerCase() || '';
+    const accountLower = account.toLowerCase();
     const userGames = resolvedGames.filter(game =>
-        (game.player1.toLowerCase() === accountLower ||
-         (game.player2 && game.player2.toLowerCase() === accountLower))
+        game.player1.toLowerCase() === accountLower || (game.player2 && game.player2.toLowerCase() === accountLower)
     );
     const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[accountLower]).length;
-    document.getElementById('resultsButton').classList.remove('hidden');
+    document.getElementById('resultsNotification').textContent = unviewedCount > 0 ? unviewedCount : '';
     if (userGames.length === 0) {
-        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No games.</li>';
-        document.getElementById('resultsNotification').classList.add('hidden');
+        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No game history available.</li>';
         return;
     }
-    document.getElementById('resultsNotification').textContent = unviewedCount || '0';
-    if (unviewedCount > 0) {
-        document.getElementById('resultsNotification').classList.remove('hidden');
-    } else {
-        document.getElementById('resultsNotification').classList.add('hidden');
-    }
     userGames.forEach(game => {
-        let buttonText = '';
-        let disabled = '';
-        if (!game.resolved) {
-            buttonText = 'Pending';
-            disabled = 'disabled';
-        } else if (!game.userResolved[accountLower]) {
-            buttonText = 'Resolve';
-        } else {
-            buttonText = 'Replay';
-        }
-        const resolveButton = `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>`;
+        const win = game.resolved && game.winner === accountLower;
+        const resultText = game.resolved ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
+        const buttonText = game.resolved ? (game.viewed[accountLower] ? 'Replay' : 'Resolve') : 'Pending';
+        const disabled = game.resolved ? '' : 'disabled';
         const li = document.createElement('li');
-        li.className = 'game-card p-2 flex justify-between items-center';
+        li.className = 'game-card p-2 flex items-center space-x-2';
         li.innerHTML = `
-            <div>
-                <div class="font-bold text-xs">Game #${game.gameId}</div>
-                <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
-                <div class="text-xs opacity-70">Created: ${new Date(Number(game.createTimestamp) * 1000).toLocaleString()}</div>
-                ${game.joinTimestamp && Number(game.joinTimestamp) > 0 ? `<div class="text-xs opacity-70">Joined: ${new Date(Number(game.joinTimestamp) * 1000).toLocaleString()}</div>` : ''}
+            <img src="${game.image1}" alt="NFT #${game.tokenId1}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
+            <img src="${game.image2 || 'https://via.placeholder.com/32?text=NF'}" alt="NFT #${game.tokenId2 || 'N/A'}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
+            <div class="flex-1">
+                <p class="text-xs">Game #${game.gameId}: <span class="${game.resolved ? (win ? 'text-green-500' : 'text-red-500') : ''}">${resultText}</span></p>
+                <p class="text-gray-400 text-xs">Date: ${game.localDate}</p>
             </div>
-            ${resolveButton}`;
+            <button class="neon-button text-xs py-0.5 px-1 resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>
+        `;
         resultsModalList.appendChild(li);
     });
-    // Add event listeners for resolve buttons
+    // Add refresh button if not present
+    if (!document.getElementById('refreshHistoryBtn')) {
+        const refreshBtn = document.createElement('button');
+        refreshBtn.id = 'refreshHistoryBtn';
+        refreshBtn.className = 'neon-button text-sm py-1 px-2 mt-2 w-full';
+        refreshBtn.textContent = 'Refresh History';
+        refreshBtn.onclick = () => window.fetchResolvedGames();
+        resultsModalList.after(refreshBtn);
+    }
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             if (!uiOptions.getAccount()) {
@@ -253,8 +239,8 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
             const gameId = button.getAttribute('data-game-id');
             const game = uiOptions.getResolvedGames().find(g => g.gameId === gameId);
             if (!game || !game.resolved) return;
-            const isReplay = game.userResolved[uiOptions.getAccount().toLowerCase()];
-            const win = game.winner === uiOptions.getAccount().toLowerCase();
+            const isReplay = game.viewed[accountLower];
+            const win = game.winner === accountLower;
             playResultVideo(
                 win ? '/win.mp4' : '/lose.mp4',
                 win ? 'You Win!' : 'You Lose!',
@@ -262,7 +248,10 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
                 game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
             );
             if (!isReplay) {
+                game.viewed[accountLower] = true;
+                localStorage.setItem('resolvedGames', JSON.stringify(uiOptions.getResolvedGames()));
                 socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
+                updateResultsModal(uiOptions.getResolvedGames(), account, resolveGame);
             }
         });
     });
@@ -283,6 +272,7 @@ export function playResultVideo(src, text, image1, image2) {
     `;
     video.src = src;
     resultText.textContent = text;
+    resultText.className = `text-base font-bold text-center ${text === 'You Win!' ? 'text-green-500' : 'text-red-500'}`;
     overlay.classList.remove('hidden', 'fade-out');
     setTimeout(() => {
         overlay.classList.add('fade-in');
@@ -298,9 +288,7 @@ export function playResultVideo(src, text, image1, image2) {
             animationNFTs.innerHTML = '';
         }, 800);
         isPlayingResultVideo = false;
-        if (lastResolvedGames && lastAccount && lastResolveGame) {
-            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-        }
+        updateResultsModal(uiOptions.getResolvedGames(), uiOptions.getAccount(), uiOptions.resolveGame);
     });
     video.onended = () => {
         console.log('Video ended, hiding overlay');
@@ -312,8 +300,6 @@ export function playResultVideo(src, text, image1, image2) {
             animationNFTs.innerHTML = '';
         }, 800);
         isPlayingResultVideo = false;
-        if (lastResolvedGames && lastAccount && lastResolveGame) {
-            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-        }
+        updateResultsModal(uiOptions.getResolvedGames(), uiOptions.getAccount(), uiOptions.resolveGame);
     };
 }
