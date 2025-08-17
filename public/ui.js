@@ -44,7 +44,7 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
             games.forEach(game => {
                 if (game.resolved) game.viewed = true;
             });
-            localStorage.setItem('resolvedGames', JSON.stringify(games.filter(g => g.resolved)));
+            localStorage.setItem('notifications', JSON.stringify(games.filter(g => g.resolved)));
             localStorage.setItem('createdGames', JSON.stringify(games.filter(g => !g.resolved && g.player1.toLowerCase() === currentAccount.toLowerCase())));
             localStorage.setItem('joinedGames', JSON.stringify(games.filter(g => !g.resolved && g.player2 && g.player2.toLowerCase() === currentAccount.toLowerCase())));
         }
@@ -66,7 +66,7 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
                 games.forEach(game => {
                     if (game.resolved) game.viewed = true;
                 });
-                localStorage.setItem('resolvedGames', JSON.stringify(games.filter(g => g.resolved)));
+                localStorage.setItem('notifications', JSON.stringify(games.filter(g => g.resolved)));
                 localStorage.setItem('createdGames', JSON.stringify(games.filter(g => !g.resolved && g.player1.toLowerCase() === currentAccount.toLowerCase())));
                 localStorage.setItem('joinedGames', JSON.stringify(games.filter(g => !g.resolved && g.player2 && g.player2.toLowerCase() === currentAccount.toLowerCase())));
             }

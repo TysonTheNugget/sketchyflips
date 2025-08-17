@@ -12,33 +12,11 @@ const socket = io('https://sketchyflipback.onrender.com', {
 let provider, signer, account, gameContract, gameContractWithSigner, nftContract;
 let selectedTokenId = null;
 let userTokens = [];
-let resolvedGames = JSON.parse(localStorage.getItem('resolvedGames')) || [];
+let notifications = JSON.parse(localStorage.getItem('notifications')) || [];
 let createdGames = JSON.parse(localStorage.getItem('createdGames')) || [];
 let joinedGames = JSON.parse(localStorage.getItem('joinedGames')) || [];
 let isResolving = false;
 let lastEventBlock = BigInt(localStorage.getItem('lastEventBlock') || '0');
-
-async function getGameWinnerOnChain(gameId) {
-    const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
-    const filter = {
-        address: gameAddress,
-        topics: [
-            topic,
-            ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
-        ]
-    };
-    const logs = await provider.getLogs(filter);
-    if (logs.length > 0) {
-        const event = gameContract.interface.parseLog(logs[0]);
-        return {
-            winner: event.args.winner.toLowerCase(),
-            tokenId1: event.args.tokenId1.toString(),
-            tokenId2: event.args.tokenId2.toString(),
-            transactionHash: logs[0].transactionHash
-        };
-    }
-    return null;
-}
 
 async function resolveGame(gameId) {
     if (isResolving) {
@@ -52,27 +30,39 @@ async function resolveGame(gameId) {
     }
     isResolving = true;
     updateStatus('Checking blockchain for result...');
-    const game = [...resolvedGames, ...createdGames, ...joinedGames].find(g => g.gameId === gameId);
+    const game = [...notifications, ...createdGames, ...joinedGames].find(g => g.gameId === gameId);
     if (!game) {
         updateStatus('Game not found.');
         isResolving = false;
         return;
     }
     try {
-        const chainResult = await getGameWinnerOnChain(gameId);
-        if (chainResult) {
-            const win = account && chainResult.winner === account.toLowerCase();
-            game.winner = chainResult.winner;
-            game.tokenId1 = chainResult.tokenId1;
-            game.tokenId2 = chainResult.tokenId2;
-            game.image1 = `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId1}.png`;
-            game.image2 = `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId2}.png`;
+        const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
+        const filter = {
+            address: gameAddress,
+            topics: [
+                topic,
+                ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
+            ]
+        };
+        const logs = await provider.getLogs(filter);
+        if (logs.length > 0) {
+            const event = gameContract.interface.parseLog(logs[0]);
+            const winner = event.args.winner.toLowerCase();
+            const tokenId1 = event.args.tokenId1.toString();
+            const tokenId2 = event.args.tokenId2.toString();
+            const win = account && winner === account.toLowerCase();
+            game.winner = winner;
+            game.tokenId1 = tokenId1;
+            game.tokenId2 = tokenId2;
+            game.image1 = `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`;
+            game.image2 = `https://f005.backblazeb2.com/file/sketchymilios/${tokenId2}.png`;
             game.resolved = true;
             game.result = win ? 'Won' : 'Lost';
             game.viewed = true;
-            game.transactionHash = chainResult.transactionHash;
-            if (!resolvedGames.some(g => g.gameId === gameId)) {
-                resolvedGames.push(game);
+            game.transactionHash = logs[0].transactionHash;
+            if (!notifications.some(g => g.gameId === gameId)) {
+                notifications.push(game);
                 createdGames = createdGames.filter(g => g.gameId !== gameId);
                 joinedGames = joinedGames.filter(g => g.gameId !== gameId);
             }
@@ -82,10 +72,10 @@ async function resolveGame(gameId) {
                 game.image1,
                 game.image2
             );
-            localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
+            localStorage.setItem('notifications', JSON.stringify(notifications));
             localStorage.setItem('createdGames', JSON.stringify(createdGames));
             localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
-            updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+            updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
             isResolving = false;
             return;
         }
@@ -117,7 +107,7 @@ async function initEthers() {
         updateStatus('Connected! Fetching games...');
         socket.emit('fetchOpenGames', { account });
         await fetchResolvedGames();
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+        updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
         setInterval(fetchResolvedGames, 30000);
         setInterval(() => socket.emit('fetchOpenGames', { account }), 10000);
     } catch (error) {
@@ -161,7 +151,7 @@ document.getElementById('createGameBtn').addEventListener('click', async () => {
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+        updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
     } catch (error) {
         console.error('Error creating game:', error);
         updateStatus(`Error creating game: ${error.message}`);
@@ -201,7 +191,7 @@ window.joinGameFromList = async (gameId) => {
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+        updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
     } catch (error) {
         console.error('Error joining game:', error);
         updateStatus(`Error joining: ${error.message}`);
@@ -221,7 +211,7 @@ window.cancelUnjoinedFromList = async (gameId) => {
         localStorage.setItem('createdGames', JSON.stringify(createdGames));
         updateStatus('Game canceled.');
         await fetchUserTokens();
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+        updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
     } catch (error) {
         console.error('Error canceling unjoined game:', error);
         updateStatus(`Error canceling: ${error.message}`);
@@ -269,7 +259,7 @@ async function fetchResolvedGames() {
     if (!account || !gameContract) return;
     try {
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = Math.max(Number(lastEventBlock) + 1, currentBlock - 1000);
+        const fromBlock = Number(lastEventBlock) === 0 ? Math.max(currentBlock - 10000, 0) : Number(lastEventBlock) + 1;
         const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
         const filter = {
             address: gameAddress,
@@ -289,7 +279,7 @@ async function fetchResolvedGames() {
             const player1 = game.player1.toLowerCase();
             const player2 = game.player2.toLowerCase();
             if (player1 === account.toLowerCase() || player2 === account.toLowerCase()) {
-                const existing = resolvedGames.find(g => g.gameId === gameId);
+                const existing = notifications.find(g => g.gameId === gameId);
                 if (!existing) {
                     const block = await provider.getBlock(log.blockNumber);
                     const localDate = new Date(block.timestamp * 1000).toLocaleString();
@@ -312,7 +302,7 @@ async function fetchResolvedGames() {
                 }
             }
         }
-        resolvedGames = [...resolvedGames, ...newGames].reduce((acc, game) => {
+        notifications = [...notifications, ...newGames].reduce((acc, game) => {
             const existing = acc.find(g => g.gameId === game.gameId);
             if (!existing) {
                 acc.push(game);
@@ -331,15 +321,15 @@ async function fetchResolvedGames() {
             }
             return acc;
         }, []);
-        createdGames = createdGames.filter(cg => !newGames.some(ng => ng.gameId === cg.gameId));
-        joinedGames = joinedGames.filter(jg => !newGames.some(ng => ng.gameId === jg.gameId));
-        localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
+        createdGames = createdGames.filter(cg => !notifications.some(ng => ng.gameId === cg.gameId));
+        joinedGames = joinedGames.filter(jg => !notifications.some(ng => ng.gameId === jg.gameId));
+        localStorage.setItem('notifications', JSON.stringify(notifications));
         localStorage.setItem('createdGames', JSON.stringify(createdGames));
         localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
         localStorage.setItem('lastEventBlock', currentBlock.toString());
         lastEventBlock = BigInt(currentBlock);
-        console.log('Fetched resolved games:', resolvedGames);
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+        console.log('Fetched resolved games:', notifications);
+        updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
     } catch (err) {
         console.error('Error fetching resolved games:', err);
         updateStatus(`Error fetching history: ${err.message}`);
@@ -361,7 +351,7 @@ socket.on('openGamesUpdate', (games) => {
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    const existingGame = [...resolvedGames, ...createdGames, ...joinedGames].find(g => g.gameId === data.gameId);
+    const existingGame = [...notifications, ...createdGames, ...joinedGames].find(g => g.gameId === data.gameId);
     if (!existingGame) {
         joinedGames.push({
             gameId: data.gameId,
@@ -379,7 +369,7 @@ socket.on('gameJoined', async (data) => {
         });
         localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
     }
-    updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+    updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
     updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
     await fetchUserTokens();
 });
@@ -412,7 +402,7 @@ document.getElementById('connectWallet').addEventListener('click', initEthers);
 initializeUI({
     socket,
     getAccount: () => account,
-    getResolvedGames: () => [...resolvedGames, ...createdGames, ...joinedGames],
+    getResolvedGames: () => [...notifications, ...createdGames, ...joinedGames],
     getUserTokens: () => userTokens,
     setSelectedTokenId: (id) => { selectedTokenId = id; },
     resolveGame
