@@ -1,13 +1,9 @@
 let uiOptions = null;
-
 let isPlayingResultVideo = false;
-
-let lastResolvedGames, lastAccount, lastResolveGame;
 
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
-   
-    // Modal event listeners
+
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
         document.getElementById('infoModal').style.display = 'block';
@@ -44,7 +40,12 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         console.log('Closing results modal');
         const currentAccount = getAccount();
         if (currentAccount) {
-            socket.emit('markGamesViewed', { account: currentAccount, gameIds: getResolvedGames().map(g => g.gameId) });
+            const games = getResolvedGames();
+            games.forEach(game => {
+                if (game.resolved) game.viewed[currentAccount.toLowerCase()] = true;
+            });
+            localStorage.setItem('resolvedGames', JSON.stringify(games));
+            socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
         }
         document.getElementById('resultsModal').style.display = 'none';
     };
@@ -60,7 +61,12 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
             console.log('Clicked outside results modal');
             const currentAccount = getAccount();
             if (currentAccount) {
-                socket.emit('markGamesViewed', { account: currentAccount, gameIds: getResolvedGames().map(g => g.gameId) });
+                const games = getResolvedGames();
+                games.forEach(game => {
+                    if (game.resolved) game.viewed[currentAccount.toLowerCase()] = true;
+                });
+                localStorage.setItem('resolvedGames', JSON.stringify(games));
+                socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
             }
             document.getElementById('resultsModal').style.display = 'none';
         }
@@ -173,7 +179,6 @@ export function updateOpenGames(games, account) {
             ${actionButton}`;
         openGamesList.appendChild(li);
     });
-    // Add event listeners for dynamically created buttons
     document.querySelectorAll('.join-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             const gameId = button.getAttribute('data-game-id');
@@ -189,60 +194,53 @@ export function updateOpenGames(games, account) {
 }
 
 export function updateResultsModal(resolvedGames, account, resolveGame) {
-    lastResolvedGames = resolvedGames;
-    lastAccount = account;
-    lastResolveGame = resolveGame;
     console.log('Updating results modal with:', resolvedGames);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
     if (!account) {
         resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">Connect wallet to view games.</li>';
-        document.getElementById('resultsNotification').classList.add('hidden');
+        document.getElementById('resultsNotification').textContent = '';
+        document.getElementById('resultsNotification').style.display = 'none';
         return;
     }
-    const accountLower = account?.toLowerCase() || '';
+    const accountLower = account.toLowerCase();
     const userGames = resolvedGames.filter(game =>
-        (game.player1.toLowerCase() === accountLower ||
-         (game.player2 && game.player2.toLowerCase() === accountLower))
+        game.player1.toLowerCase() === accountLower || (game.player2 && game.player2.toLowerCase() === accountLower)
     );
     const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[accountLower]).length;
-    document.getElementById('resultsButton').classList.remove('hidden');
+    document.getElementById('resultsNotification').textContent = unviewedCount > 0 ? unviewedCount : '';
+    document.getElementById('resultsNotification').style.display = unviewedCount > 0 ? 'flex' : 'none';
     if (userGames.length === 0) {
-        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No games.</li>';
-        document.getElementById('resultsNotification').classList.add('hidden');
+        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No game history available.</li>';
         return;
     }
-    document.getElementById('resultsNotification').textContent = unviewedCount || '0';
-    if (unviewedCount > 0) {
-        document.getElementById('resultsNotification').classList.remove('hidden');
-    } else {
-        document.getElementById('resultsNotification').classList.add('hidden');
-    }
     userGames.forEach(game => {
-        let buttonText = '';
-        let disabled = '';
-        if (!game.resolved) {
-            buttonText = 'Pending';
-            disabled = 'disabled';
-        } else if (!game.userResolved[accountLower]) {
-            buttonText = 'Resolve';
-        } else {
-            buttonText = 'Replay';
-        }
-        const resolveButton = `<button class="neon-button py-0.5 px-1 text-xs resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>`;
+        const isResolved = game.resolved;
+        const win = isResolved && game.winner === accountLower;
+        const resultText = isResolved ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
+        const buttonText = isResolved ? (game.viewed[accountLower] ? 'Replay' : 'Resolve') : 'Pending';
+        const disabled = isResolved ? '' : 'disabled';
         const li = document.createElement('li');
-        li.className = 'game-card p-2 flex justify-between items-center';
+        li.className = 'game-card p-2 flex items-center space-x-2';
         li.innerHTML = `
-            <div>
-                <div class="font-bold text-xs">Game #${game.gameId}</div>
-                <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
-                <div class="text-xs opacity-70">Created: ${new Date(Number(game.createTimestamp) * 1000).toLocaleString()}</div>
-                ${game.joinTimestamp && Number(game.joinTimestamp) > 0 ? `<div class="text-xs opacity-70">Joined: ${new Date(Number(game.joinTimestamp) * 1000).toLocaleString()}</div>` : ''}
+            <img src="${game.image1}" alt="NFT #${game.tokenId1}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
+            <img src="${game.image2 || 'https://via.placeholder.com/32?text=NF'}" alt="NFT #${game.tokenId2 || 'N/A'}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
+            <div class="flex-1">
+                <p class="text-xs">Game #${game.gameId}: <span class="${isResolved ? (win ? 'text-green-500' : 'text-red-500') : ''}">${resultText}</span></p>
+                <p class="text-gray-400 text-xs">Date: ${game.localDate}</p>
             </div>
-            ${resolveButton}`;
+            <button class="neon-button text-xs py-0.5 px-1 resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>
+        `;
         resultsModalList.appendChild(li);
     });
-    // Add event listeners for resolve buttons
+    if (!document.getElementById('refreshHistoryBtn')) {
+        const refreshBtn = document.createElement('button');
+        refreshBtn.id = 'refreshHistoryBtn';
+        refreshBtn.className = 'neon-button text-sm py-1 px-2 mt-2 w-full';
+        refreshBtn.textContent = 'Refresh History';
+        refreshBtn.onclick = () => window.fetchResolvedGames();
+        resultsModalList.after(refreshBtn);
+    }
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             if (!uiOptions.getAccount()) {
@@ -251,19 +249,7 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
                 return;
             }
             const gameId = button.getAttribute('data-game-id');
-            const game = uiOptions.getResolvedGames().find(g => g.gameId === gameId);
-            if (!game || !game.resolved) return;
-            const isReplay = game.userResolved[uiOptions.getAccount().toLowerCase()];
-            const win = game.winner === uiOptions.getAccount().toLowerCase();
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4',
-                win ? 'You Win!' : 'You Lose!',
-                game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
-                game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
-            );
-            if (!isReplay) {
-                socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
-            }
+            uiOptions.resolveGame(gameId);
         });
     });
 }
@@ -282,11 +268,11 @@ export function playResultVideo(src, text, image1, image2) {
         <img src="${validImage2}" alt="NFT2" onerror="this.src='https://via.placeholder.com/64';">
     `;
     video.src = src;
+    video.innerHTML = `<source src="${src}" type="video/mp4">`;
     resultText.textContent = text;
+    resultText.className = `text-base font-bold text-center ${text === 'You Win!' ? 'text-green-500' : 'text-red-500'} status-pulse`;
     overlay.classList.remove('hidden', 'fade-out');
-    setTimeout(() => {
-        overlay.classList.add('fade-in');
-    }, 10);
+    overlay.classList.add('fade-in');
     video.play().catch(error => {
         console.error('Error playing video:', error);
         updateStatus(`Error playing result video: ${error.message}`);
@@ -296,11 +282,9 @@ export function playResultVideo(src, text, image1, image2) {
             overlay.classList.add('hidden');
             overlay.classList.remove('fade-out');
             animationNFTs.innerHTML = '';
+            isPlayingResultVideo = false;
+            updateResultsModal(uiOptions.getResolvedGames(), uiOptions.getAccount(), uiOptions.resolveGame);
         }, 800);
-        isPlayingResultVideo = false;
-        if (lastResolvedGames && lastAccount && lastResolveGame) {
-            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-        }
     });
     video.onended = () => {
         console.log('Video ended, hiding overlay');
@@ -310,10 +294,8 @@ export function playResultVideo(src, text, image1, image2) {
             overlay.classList.add('hidden');
             overlay.classList.remove('fade-out');
             animationNFTs.innerHTML = '';
+            isPlayingResultVideo = false;
+            updateResultsModal(uiOptions.getResolvedGames(), uiOptions.getAccount(), uiOptions.resolveGame);
         }, 800);
-        isPlayingResultVideo = false;
-        if (lastResolvedGames && lastAccount && lastResolveGame) {
-            updateResultsModal(lastResolvedGames, lastAccount, lastResolveGame);
-        }
     };
 }
