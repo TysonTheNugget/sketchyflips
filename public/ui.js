@@ -40,7 +40,12 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         console.log('Closing results modal');
         const currentAccount = getAccount();
         if (currentAccount) {
-            socket.emit('markGamesViewed', { account: currentAccount, gameIds: getResolvedGames().map(g => g.gameId) });
+            const games = getResolvedGames();
+            games.forEach(game => {
+                game.viewed[currentAccount.toLowerCase()] = true;
+            });
+            localStorage.setItem('resolvedGames', JSON.stringify(games));
+            socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
         }
         document.getElementById('resultsModal').style.display = 'none';
     };
@@ -56,7 +61,12 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
             console.log('Clicked outside results modal');
             const currentAccount = getAccount();
             if (currentAccount) {
-                socket.emit('markGamesViewed', { account: currentAccount, gameIds: getResolvedGames().map(g => g.gameId) });
+                const games = getResolvedGames();
+                games.forEach(game => {
+                    game.viewed[currentAccount.toLowerCase()] = true;
+                });
+                localStorage.setItem('resolvedGames', JSON.stringify(games));
+                socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
             }
             document.getElementById('resultsModal').style.display = 'none';
         }

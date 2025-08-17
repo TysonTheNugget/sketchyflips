@@ -63,8 +63,8 @@ async function resolveGame(gameId) {
                 game.image2 = `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId2}.png`;
                 game.resolved = true;
                 game.userResolved[account.toLowerCase()] = true;
-                game.viewed[account.toLowerCase()] = true; // Mark as viewed
-                game.localDate = game.localDate || new Date().toLocaleString(); // Ensure date exists
+                game.viewed[account.toLowerCase()] = true;
+                game.localDate = game.localDate || new Date().toLocaleString();
             } else {
                 const gameData = await gameContract.getGame(BigInt(gameId));
                 resolvedGames.push({
@@ -132,6 +132,8 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
         await fetchUserTokens(true);
         updateStatus('Connected! Fetching games...');
         socket.emit('fetchResolvedGames', { account });
+        // Load persisted games immediately
+        updateResultsModal(resolvedGames, account);
     } catch (error) {
         console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
@@ -276,20 +278,23 @@ socket.on('openGamesUpdate', (games) => {
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    resolvedGames.push({
-        gameId: data.gameId,
-        player1: data.player1,
-        tokenId1: data.tokenId1,
-        image1: data.image1,
-        player2: data.player2,
-        tokenId2: data.tokenId2,
-        image2: data.image2,
-        resolved: false,
-        userResolved: { [account?.toLowerCase() || '']: false },
-        viewed: { [account?.toLowerCase() || '']: false },
-        localDate: new Date().toLocaleString()
-    });
-    localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
+    const existingGame = resolvedGames.find(g => g.gameId === data.gameId);
+    if (!existingGame) {
+        resolvedGames.push({
+            gameId: data.gameId,
+            player1: data.player1,
+            tokenId1: data.tokenId1,
+            image1: data.image1,
+            player2: data.player2,
+            tokenId2: data.tokenId2,
+            image2: data.image2,
+            resolved: false,
+            userResolved: { [account?.toLowerCase() || '']: false },
+            viewed: { [account?.toLowerCase() || '']: false },
+            localDate: new Date().toLocaleString()
+        });
+        localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
+    }
     updateResultsModal(resolvedGames, account);
     updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
     await fetchUserTokens();
