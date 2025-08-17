@@ -1,9 +1,9 @@
 let uiOptions = null;
 let isPlayingResultVideo = false;
 
-export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
-    uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
-   
+export function initializeUI({ getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
+    uiOptions = { getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
+
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
         document.getElementById('infoModal').style.display = 'block';
@@ -42,10 +42,9 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         if (currentAccount) {
             const games = getResolvedGames();
             games.forEach(game => {
-                game.viewed[currentAccount.toLowerCase()] = true;
+                game.viewed = true;
             });
             localStorage.setItem('resolvedGames', JSON.stringify(games));
-            socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
         }
         document.getElementById('resultsModal').style.display = 'none';
     };
@@ -63,10 +62,9 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
             if (currentAccount) {
                 const games = getResolvedGames();
                 games.forEach(game => {
-                    game.viewed[currentAccount.toLowerCase()] = true;
+                    game.viewed = true;
                 });
                 localStorage.setItem('resolvedGames', JSON.stringify(games));
-                socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
             }
             document.getElementById('resultsModal').style.display = 'none';
         }
@@ -200,37 +198,37 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
     if (!account) {
         resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">Connect wallet to view games.</li>';
         document.getElementById('resultsNotification').textContent = '';
+        document.getElementById('resultsNotification').style.display = 'none';
         return;
     }
     const accountLower = account.toLowerCase();
     const userGames = resolvedGames.filter(game =>
         game.player1.toLowerCase() === accountLower || (game.player2 && game.player2.toLowerCase() === accountLower)
     );
-    const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[accountLower]).length;
+    const unviewedCount = userGames.filter(game => !game.viewed).length;
     document.getElementById('resultsNotification').textContent = unviewedCount > 0 ? unviewedCount : '';
+    document.getElementById('resultsNotification').style.display = unviewedCount > 0 ? 'flex' : 'none';
     if (userGames.length === 0) {
         resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No game history available.</li>';
         return;
     }
     userGames.forEach(game => {
-        const win = game.resolved && game.winner === accountLower;
-        const resultText = game.resolved ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
-        const buttonText = game.resolved ? (game.viewed[accountLower] ? 'Replay' : 'Resolve') : 'Pending';
-        const disabled = game.resolved ? '' : 'disabled';
+        const win = game.result === 'Won';
+        const resultText = game.viewed ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
+        const buttonText = game.viewed ? 'Replay' : 'Resolve';
         const li = document.createElement('li');
         li.className = 'game-card p-2 flex items-center space-x-2';
         li.innerHTML = `
             <img src="${game.image1}" alt="NFT #${game.tokenId1}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
             <img src="${game.image2 || 'https://via.placeholder.com/32?text=NF'}" alt="NFT #${game.tokenId2 || 'N/A'}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
             <div class="flex-1">
-                <p class="text-xs">Game #${game.gameId}: <span class="${game.resolved ? (win ? 'text-green-500' : 'text-red-500') : ''}">${resultText}</span></p>
+                <p class="text-xs">Game #${game.gameId}: <span class="${game.viewed ? (win ? 'text-green-500' : 'text-red-500') : ''}">${resultText}</span></p>
                 <p class="text-gray-400 text-xs">Date: ${game.localDate}</p>
             </div>
-            <button class="neon-button text-xs py-0.5 px-1 resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>
+            <button class="neon-button text-xs py-0.5 px-1 resolve-game-btn" data-game-id="${game.gameId}">${buttonText}</button>
         `;
         resultsModalList.appendChild(li);
     });
-    // Add refresh button if not present
     if (!document.getElementById('refreshHistoryBtn')) {
         const refreshBtn = document.createElement('button');
         refreshBtn.id = 'refreshHistoryBtn';
@@ -247,22 +245,7 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
                 return;
             }
             const gameId = button.getAttribute('data-game-id');
-            const game = uiOptions.getResolvedGames().find(g => g.gameId === gameId);
-            if (!game || !game.resolved) return;
-            const isReplay = game.viewed[accountLower];
-            const win = game.winner === accountLower;
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4',
-                win ? 'You Win!' : 'You Lose!',
-                game.image1 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
-                game.image2 || `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId2}.png`
-            );
-            if (!isReplay) {
-                game.viewed[accountLower] = true;
-                localStorage.setItem('resolvedGames', JSON.stringify(uiOptions.getResolvedGames()));
-                socket.emit('markGameResolved', { gameId, account: uiOptions.getAccount() });
-                updateResultsModal(uiOptions.getResolvedGames(), account, resolveGame);
-            }
+            uiOptions.resolveGame(gameId);
         });
     });
 }
