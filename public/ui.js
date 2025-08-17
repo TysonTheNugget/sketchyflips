@@ -42,10 +42,11 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         if (currentAccount) {
             const games = getResolvedGames();
             games.forEach(game => {
-                if (game.resolved) game.viewed[currentAccount.toLowerCase()] = true;
+                if (game.resolved) game.viewed = true;
             });
-            localStorage.setItem('resolvedGames', JSON.stringify(games));
-            socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
+            localStorage.setItem('resolvedGames', JSON.stringify(games.filter(g => g.resolved)));
+            localStorage.setItem('createdGames', JSON.stringify(games.filter(g => !g.resolved && g.player1.toLowerCase() === currentAccount.toLowerCase())));
+            localStorage.setItem('joinedGames', JSON.stringify(games.filter(g => !g.resolved && g.player2 && g.player2.toLowerCase() === currentAccount.toLowerCase())));
         }
         document.getElementById('resultsModal').style.display = 'none';
     };
@@ -63,10 +64,11 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
             if (currentAccount) {
                 const games = getResolvedGames();
                 games.forEach(game => {
-                    if (game.resolved) game.viewed[currentAccount.toLowerCase()] = true;
+                    if (game.resolved) game.viewed = true;
                 });
-                localStorage.setItem('resolvedGames', JSON.stringify(games));
-                socket.emit('markGamesViewed', { account: currentAccount, gameIds: games.map(g => g.gameId) });
+                localStorage.setItem('resolvedGames', JSON.stringify(games.filter(g => g.resolved)));
+                localStorage.setItem('createdGames', JSON.stringify(games.filter(g => !g.resolved && g.player1.toLowerCase() === currentAccount.toLowerCase())));
+                localStorage.setItem('joinedGames', JSON.stringify(games.filter(g => !g.resolved && g.player2 && g.player2.toLowerCase() === currentAccount.toLowerCase())));
             }
             document.getElementById('resultsModal').style.display = 'none';
         }
@@ -193,8 +195,8 @@ export function updateOpenGames(games, account) {
     });
 }
 
-export function updateResultsModal(resolvedGames, account, resolveGame) {
-    console.log('Updating results modal with:', resolvedGames);
+export function updateResultsModal(games, account, resolveGame) {
+    console.log('Updating results modal with:', games);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
     if (!account) {
@@ -204,10 +206,10 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         return;
     }
     const accountLower = account.toLowerCase();
-    const userGames = resolvedGames.filter(game =>
+    const userGames = games.filter(game =>
         game.player1.toLowerCase() === accountLower || (game.player2 && game.player2.toLowerCase() === accountLower)
     );
-    const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[accountLower]).length;
+    const unviewedCount = userGames.filter(game => game.resolved && !game.viewed).length;
     document.getElementById('resultsNotification').textContent = unviewedCount > 0 ? unviewedCount : '';
     document.getElementById('resultsNotification').style.display = unviewedCount > 0 ? 'flex' : 'none';
     if (userGames.length === 0) {
@@ -218,7 +220,7 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         const isResolved = game.resolved;
         const win = isResolved && game.winner === accountLower;
         const resultText = isResolved ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
-        const buttonText = isResolved ? (game.viewed[accountLower] ? 'Replay' : 'Resolve') : 'Pending';
+        const buttonText = isResolved ? (game.viewed ? 'Replay' : 'Resolve') : 'Pending';
         const disabled = isResolved ? '' : 'disabled';
         const li = document.createElement('li');
         li.className = 'game-card p-2 flex items-center space-x-2';

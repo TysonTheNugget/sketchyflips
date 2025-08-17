@@ -31,7 +31,8 @@ async function getGameWinnerOnChain(gameId) {
         return {
             winner: event.args.winner.toLowerCase(),
             tokenId1: event.args.tokenId1.toString(),
-            tokenId2: event.args.tokenId2.toString()
+            tokenId2: event.args.tokenId2.toString(),
+            transactionHash: logs[0].transactionHash
         };
     }
     return null;
@@ -67,6 +68,7 @@ async function resolveGame(gameId) {
             game.resolved = true;
             game.userResolved[account.toLowerCase()] = true;
             game.viewed[account.toLowerCase()] = true;
+            game.transactionHash = chainResult.transactionHash;
             playResultVideo(
                 win ? '/win.mp4' : '/lose.mp4',
                 win ? 'You Win!' : 'You Lose!',
@@ -244,7 +246,6 @@ async function fetchResolvedGames() {
                 if (!existing) {
                     const block = await provider.getBlock(log.blockNumber);
                     const localDate = new Date(block.timestamp * 1000).toLocaleString();
-                    const result = winner === account.toLowerCase() ? 'Won' : 'Lost';
                     newGames.push({
                         gameId,
                         player1,
@@ -254,12 +255,10 @@ async function fetchResolvedGames() {
                         image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
                         image2: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId2}.png`,
                         winner,
-                        result,
-                        localDate,
-                        transactionHash: log.transactionHash,
                         resolved: true,
                         userResolved: { [account.toLowerCase()]: true },
-                        viewed: { [account.toLowerCase()]: false }
+                        viewed: { [account.toLowerCase()]: false },
+                        localDate
                     });
                 }
             }
@@ -270,10 +269,20 @@ async function fetchResolvedGames() {
                 acc.push({
                     ...game,
                     userResolved: game.userResolved || { [account?.toLowerCase() || '']: false },
-                    viewed: game.viewed || { [account?.toLowerCase() || '']: false }
+                    viewed: game.viewed || { [account?.toLowerCase() || '']: false },
+                    localDate: game.localDate || new Date().toLocaleString()
                 });
             } else if (!existing.viewed[account?.toLowerCase()]) {
                 existing.viewed[account?.toLowerCase()] = game.viewed?.[account?.toLowerCase()] || false;
+                existing.localDate = game.localDate || existing.localDate;
+                if (game.resolved) {
+                    existing.resolved = true;
+                    existing.winner = game.winner;
+                    existing.tokenId1 = game.tokenId1;
+                    existing.tokenId2 = game.tokenId2;
+                    existing.image1 = game.image1;
+                    existing.image2 = game.image2;
+                }
             }
             return acc;
         }, []);
@@ -281,7 +290,7 @@ async function fetchResolvedGames() {
         localStorage.setItem('lastEventBlock', currentBlock.toString());
         lastEventBlock = BigInt(currentBlock);
         console.log('Fetched resolved games:', resolvedGames);
-        socket.emit('fetchResolvedGames', { account }); // Keep backend sync
+        socket.emit('fetchResolvedGames', { account });
         updateResultsModal(resolvedGames, account);
     } catch (err) {
         console.error('Error fetching resolved games:', err);
@@ -304,20 +313,23 @@ socket.on('openGamesUpdate', (games) => {
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    resolvedGames.push({
-        gameId: data.gameId,
-        player1: data.player1,
-        tokenId1: data.tokenId1,
-        image1: data.image1,
-        player2: data.player2,
-        tokenId2: data.tokenId2,
-        image2: data.image2,
-        resolved: false,
-        userResolved: { [account?.toLowerCase() || '']: false },
-        viewed: { [account?.toLowerCase() || '']: false },
-        localDate: new Date().toLocaleString()
-    });
-    localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
+    const existingGame = resolvedGames.find(g => g.gameId === data.gameId);
+    if (!existingGame) {
+        resolvedGames.push({
+            gameId: data.gameId,
+            player1: data.player1,
+            tokenId1: data.tokenId1,
+            image1: data.image1,
+            player2: data.player2,
+            tokenId2: data.tokenId2,
+            image2: data.image2,
+            resolved: false,
+            userResolved: { [account?.toLowerCase() || '']: false },
+            viewed: { [account?.toLowerCase() || '']: false },
+            localDate: new Date().toLocaleString()
+        });
+        localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
+    }
     updateResultsModal(resolvedGames, account);
     updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
     await fetchUserTokens();
@@ -325,7 +337,7 @@ socket.on('gameJoined', async (data) => {
 
 socket.on('resolvedGames', (games) => {
     console.log('Received resolvedGames:', games);
-    const blockchainGames = resolvedGames.filter(g => g.resolved); // Keep blockchain-fetched resolved games
+    const blockchainGames = resolvedGames.filter(g => g.resolved); // Preserve blockchain-fetched resolved games
     const newGames = games.map(game => ({
         ...game,
         userResolved: game.userResolved || { [account?.toLowerCase() || '']: false },
@@ -339,6 +351,14 @@ socket.on('resolvedGames', (games) => {
         } else if (!existing.viewed[account?.toLowerCase()]) {
             existing.viewed[account?.toLowerCase()] = game.viewed?.[account?.toLowerCase()] || false;
             existing.localDate = game.localDate || existing.localDate;
+            if (!existing.resolved && game.resolved) {
+                existing.resolved = game.resolved;
+                existing.winner = game.winner;
+                existing.tokenId1 = game.tokenId1;
+                existing.tokenId2 = game.tokenId2;
+                existing.image1 = game.image1;
+                existing.image2 = game.image2;
+            }
         }
         return acc;
     }, []);
