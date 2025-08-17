@@ -42,9 +42,11 @@ export function initializeUI({ getAccount, getResolvedGames, getUserTokens, setS
         if (currentAccount) {
             const games = getResolvedGames();
             games.forEach(game => {
-                game.viewed = true;
+                if (game.result) game.viewed = true;
             });
-            localStorage.setItem('resolvedGames', JSON.stringify(games));
+            localStorage.setItem('resolvedGames', JSON.stringify(games.filter(g => g.result)));
+            localStorage.setItem('createdGames', JSON.stringify(games.filter(g => !g.result && g.player1.toLowerCase() === currentAccount.toLowerCase())));
+            localStorage.setItem('joinedGames', JSON.stringify(games.filter(g => !g.result && g.player2 && g.player2.toLowerCase() === currentAccount.toLowerCase())));
         }
         document.getElementById('resultsModal').style.display = 'none';
     };
@@ -62,9 +64,11 @@ export function initializeUI({ getAccount, getResolvedGames, getUserTokens, setS
             if (currentAccount) {
                 const games = getResolvedGames();
                 games.forEach(game => {
-                    game.viewed = true;
+                    if (game.result) game.viewed = true;
                 });
-                localStorage.setItem('resolvedGames', JSON.stringify(games));
+                localStorage.setItem('resolvedGames', JSON.stringify(games.filter(g => g.result)));
+                localStorage.setItem('createdGames', JSON.stringify(games.filter(g => !g.result && g.player1.toLowerCase() === currentAccount.toLowerCase())));
+                localStorage.setItem('joinedGames', JSON.stringify(games.filter(g => !g.result && g.player2 && g.player2.toLowerCase() === currentAccount.toLowerCase())));
             }
             document.getElementById('resultsModal').style.display = 'none';
         }
@@ -191,8 +195,8 @@ export function updateOpenGames(games, account) {
     });
 }
 
-export function updateResultsModal(resolvedGames, account, resolveGame) {
-    console.log('Updating results modal with:', resolvedGames);
+export function updateResultsModal(games, account, resolveGame) {
+    console.log('Updating results modal with:', games);
     const resultsModalList = document.getElementById('resultsModalList');
     resultsModalList.innerHTML = '';
     if (!account) {
@@ -202,10 +206,10 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         return;
     }
     const accountLower = account.toLowerCase();
-    const userGames = resolvedGames.filter(game =>
+    const userGames = games.filter(game =>
         game.player1.toLowerCase() === accountLower || (game.player2 && game.player2.toLowerCase() === accountLower)
     );
-    const unviewedCount = userGames.filter(game => !game.viewed).length;
+    const unviewedCount = userGames.filter(game => game.result && !game.viewed).length;
     document.getElementById('resultsNotification').textContent = unviewedCount > 0 ? unviewedCount : '';
     document.getElementById('resultsNotification').style.display = unviewedCount > 0 ? 'flex' : 'none';
     if (userGames.length === 0) {
@@ -213,19 +217,21 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         return;
     }
     userGames.forEach(game => {
+        const isResolved = !!game.result;
         const win = game.result === 'Won';
-        const resultText = game.viewed ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
-        const buttonText = game.viewed ? 'Replay' : 'Resolve';
+        const resultText = isResolved ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
+        const buttonText = isResolved ? (game.viewed ? 'Replay' : 'Resolve') : 'Pending';
+        const disabled = isResolved ? '' : 'disabled';
         const li = document.createElement('li');
         li.className = 'game-card p-2 flex items-center space-x-2';
         li.innerHTML = `
             <img src="${game.image1}" alt="NFT #${game.tokenId1}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
             <img src="${game.image2 || 'https://via.placeholder.com/32?text=NF'}" alt="NFT #${game.tokenId2 || 'N/A'}" class="w-8 h-8 rounded" onerror="this.src='https://via.placeholder.com/32?text=NF';" />
             <div class="flex-1">
-                <p class="text-xs">Game #${game.gameId}: <span class="${game.viewed ? (win ? 'text-green-500' : 'text-red-500') : ''}">${resultText}</span></p>
+                <p class="text-xs">Game #${game.gameId}: <span class="${isResolved ? (win ? 'text-green-500' : 'text-red-500') : ''}">${resultText}</span></p>
                 <p class="text-gray-400 text-xs">Date: ${game.localDate}</p>
             </div>
-            <button class="neon-button text-xs py-0.5 px-1 resolve-game-btn" data-game-id="${game.gameId}">${buttonText}</button>
+            <button class="neon-button text-xs py-0.5 px-1 resolve-game-btn" data-game-id="${game.gameId}" ${disabled}>${buttonText}</button>
         `;
         resultsModalList.appendChild(li);
     });
