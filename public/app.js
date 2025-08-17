@@ -2,7 +2,7 @@ import { gameABI, nftABI } from './abis.js';
 import { initializeUI, showLoadingScreen, hideLoadingScreen, updateStatus, displayNFTsInModal, selectNFT, updateOpenGames, updateResultsModal, playResultVideo } from './ui.js';
 
 const gameAddress = '0xf6b8d2E0d36669Ed82059713BDc6ACfABe11Fde6';
-const nftAddress = '0x08533A2b16e3db03eeBD5b23210122f97dfcb97d';
+const nftAddress = '0x08533a2b16e3db03eebd5b23210122f97dfcb97d';
 const socket = io('https://sketchyflipback.onrender.com', {
     reconnection: true,
     reconnectionAttempts: 5,
@@ -12,13 +12,11 @@ const socket = io('https://sketchyflipback.onrender.com', {
 let provider, signer, account, gameContract, gameContractWithSigner, nftContract;
 let selectedTokenId = null;
 let userTokens = [];
-let resolvedGames = JSON.parse(localStorage.getItem('resolvedGames')) || [];
-let createdGames = JSON.parse(localStorage.getItem('createdGames')) || [];
-let joinedGames = JSON.parse(localStorage.getItem('joinedGames')) || [];
+let resolvedGames = [];
 let isResolving = false;
-let lastEventBlock = BigInt(localStorage.getItem('lastEventBlock') || '0');
 
-async function getGameWinnerOnChain(gameId) {
+async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
+    const contract = new ethers.Contract(gameAddress, gameABI, provider);
     const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
     const filter = {
         address: gameAddress,
@@ -29,12 +27,11 @@ async function getGameWinnerOnChain(gameId) {
     };
     const logs = await provider.getLogs(filter);
     if (logs.length > 0) {
-        const event = gameContract.interface.parseLog(logs[0]);
+        const event = contract.interface.parseLog(logs[0]);
         return {
             winner: event.args.winner.toLowerCase(),
             tokenId1: event.args.tokenId1.toString(),
-            tokenId2: event.args.tokenId2.toString(),
-            transactionHash: logs[0].transactionHash
+            tokenId2: event.args.tokenId2.toString()
         };
     }
     return null;
@@ -52,52 +49,59 @@ async function resolveGame(gameId) {
     }
     isResolving = true;
     updateStatus('Checking blockchain for result...');
-    const game = [...resolvedGames, ...createdGames, ...joinedGames].find(g => g.gameId === gameId);
-    if (!game) {
-        updateStatus('Game not found.');
-        isResolving = false;
-        return;
-    }
     try {
-        const chainResult = await getGameWinnerOnChain(gameId);
+        // Try to get the result directly from the blockchain (frontend, fastest!)
+        const chainResult = await getGameWinnerOnChain(
+            gameId,
+            gameAddress,
+            gameABI,
+            provider // use your ethers.js provider (NOT signer)
+        );
         if (chainResult) {
+            // Found winner on chain!
             const win = account && chainResult.winner === account.toLowerCase();
-            game.winner = chainResult.winner;
-            game.tokenId1 = chainResult.tokenId1;
-            game.tokenId2 = chainResult.tokenId2;
-            game.image1 = `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId1}.png`;
-            game.image2 = `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId2}.png`;
-            game.resolved = true;
-            game.result = win ? 'Won' : 'Lost';
-            game.viewed = true;
-            game.transactionHash = chainResult.transactionHash;
-            if (!resolvedGames.some(g => g.gameId === gameId)) {
-                resolvedGames.push(game);
-                createdGames = createdGames.filter(g => g.gameId !== gameId);
-                joinedGames = joinedGames.filter(g => g.gameId !== gameId);
-            }
+            updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
             playResultVideo(
                 win ? '/win.mp4' : '/lose.mp4',
                 win ? 'You Win!' : 'You Lose!',
-                game.image1,
-                game.image2
+                `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId1}.png`,
+                `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId2}.png`
             );
-            localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
-            localStorage.setItem('createdGames', JSON.stringify(createdGames));
-            localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
-            updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+            socket.emit('markGameResolved', { gameId, account });
+            socket.emit('fetchResolvedGames', { account });
+            setTimeout(() => {
+                socket.emit('fetchResolvedGames', { account });
+            }, 2000);
+            await fetchUserTokens();
             isResolving = false;
             return;
         }
-        updateStatus('Game not yet resolved on chain.');
     } catch (err) {
-        console.error('Blockchain query error:', err);
-        updateStatus(`Error resolving game: ${err.message}`);
+        // If there's an error querying chain, fallback to backend:
+        console.error('Blockchain query error, falling back to backend:', err);
     }
-    isResolving = false;
+    // Fallback: let backend handle as before
+    updateStatus('Loading... Checking game resolution...');
+    socket.emit('resolveGame', { gameId, account });
+    setTimeout(() => {
+        if (isResolving) {
+            isResolving = false;
+            updateStatus('Resolution timed out, please try again.');
+            socket.emit('fetchResolvedGames', { account });
+        }
+    }, 60000);
 }
 
-async function initEthers() {
+initializeUI({ 
+    socket, 
+    getAccount: () => account, 
+    getResolvedGames: () => resolvedGames, 
+    getUserTokens: () => userTokens, 
+    setSelectedTokenId: (id) => { selectedTokenId = id; },
+    resolveGame
+});
+
+document.getElementById('connectWallet').addEventListener('click', async () => {
     if (!window.ethereum) {
         updateStatus('Install MetaMask.');
         return;
@@ -109,17 +113,15 @@ async function initEthers() {
         account = await signer.getAddress();
         document.getElementById('accountInfo').textContent = `Account: ${account.slice(0,6)}...${account.slice(-4)}`;
         updateStatus('Wallet connected...');
+        
         gameContract = new ethers.Contract(gameAddress, gameABI, provider);
         gameContractWithSigner = gameContract.connect(signer);
         nftContract = new ethers.Contract(nftAddress, nftABI, signer);
+        
         socket.emit('registerAddress', { address: account });
         await fetchUserTokens(true);
         updateStatus('Connected! Fetching games...');
-        socket.emit('fetchOpenGames', { account });
-        await fetchResolvedGames();
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
-        setInterval(fetchResolvedGames, 30000);
-        setInterval(() => socket.emit('fetchOpenGames', { account }), 10000);
+        socket.emit('fetchResolvedGames', { account });
     } catch (error) {
         console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
@@ -127,7 +129,7 @@ async function initEthers() {
             updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
         }
     }
-}
+});
 
 document.getElementById('createGameBtn').addEventListener('click', async () => {
     if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
@@ -138,30 +140,11 @@ document.getElementById('createGameBtn').addEventListener('click', async () => {
         await approveTx.wait();
         updateStatus('Creating game...');
         const tx = await gameContractWithSigner.createGame(selectedTokenId);
-        const receipt = await tx.wait();
-        const gameId = receipt.events.find(e => e.event === 'GameCreated')?.args.gameId?.toString();
-        if (gameId) {
-            createdGames.push({
-                gameId,
-                player1: account.toLowerCase(),
-                tokenId1: selectedTokenId.toString(),
-                image1: `https://f005.backblazeb2.com/file/sketchymilios/${selectedTokenId}.png`,
-                player2: null,
-                tokenId2: null,
-                image2: null,
-                resolved: false,
-                result: null,
-                localDate: new Date().toLocaleString(),
-                viewed: false,
-                transactionHash: receipt.transactionHash
-            });
-            localStorage.setItem('createdGames', JSON.stringify(createdGames));
-        }
+        await tx.wait();
         updateStatus('Game created! Waiting for join...');
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
     } catch (error) {
         console.error('Error creating game:', error);
         updateStatus(`Error creating game: ${error.message}`);
@@ -180,28 +163,11 @@ window.joinGameFromList = async (gameId) => {
         await approveTx.wait();
         updateStatus('Joining game...');
         const tx = await gameContractWithSigner.joinGame(gameId, selectedTokenId);
-        const receipt = await tx.wait();
-        const game = await gameContract.getGame(BigInt(gameId));
-        joinedGames.push({
-            gameId,
-            player1: game.player1.toLowerCase(),
-            player2: account.toLowerCase(),
-            tokenId1: game.tokenId1.toString(),
-            tokenId2: selectedTokenId.toString(),
-            image1: `https://f005.backblazeb2.com/file/sketchymilios/${game.tokenId1}.png`,
-            image2: `https://f005.backblazeb2.com/file/sketchymilios/${selectedTokenId}.png`,
-            resolved: false,
-            result: null,
-            localDate: new Date().toLocaleString(),
-            viewed: false,
-            transactionHash: receipt.transactionHash
-        });
-        localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
+        await tx.wait();
         updateStatus('Joined! Waiting for result...');
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
     } catch (error) {
         console.error('Error joining game:', error);
         updateStatus(`Error joining: ${error.message}`);
@@ -217,11 +183,8 @@ window.cancelUnjoinedFromList = async (gameId) => {
         updateStatus('Canceling game...');
         const tx = await gameContractWithSigner.cancelUnjoinedGame(gameId);
         await tx.wait();
-        createdGames = createdGames.filter(g => g.gameId !== gameId);
-        localStorage.setItem('createdGames', JSON.stringify(createdGames));
         updateStatus('Game canceled.');
         await fetchUserTokens();
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
     } catch (error) {
         console.error('Error canceling unjoined game:', error);
         updateStatus(`Error canceling: ${error.message}`);
@@ -265,87 +228,7 @@ async function fetchUserTokens(showLoading = false) {
     }
 }
 
-async function fetchResolvedGames() {
-    if (!account || !gameContract) return;
-    try {
-        const currentBlock = await provider.getBlockNumber();
-        const fromBlock = Math.max(Number(lastEventBlock) + 1, currentBlock - 1000);
-        const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
-        const filter = {
-            address: gameAddress,
-            topics: [topic],
-            fromBlock,
-            toBlock: currentBlock
-        };
-        const logs = await provider.getLogs(filter);
-        const newGames = [];
-        for (const log of logs) {
-            const event = gameContract.interface.parseLog(log);
-            const gameId = event.args[0].toString();
-            const winner = event.args[1].toLowerCase();
-            const tokenId1 = event.args[2].toString();
-            const tokenId2 = event.args[3].toString();
-            const game = await gameContract.getGame(BigInt(gameId));
-            const player1 = game.player1.toLowerCase();
-            const player2 = game.player2.toLowerCase();
-            if (player1 === account.toLowerCase() || player2 === account.toLowerCase()) {
-                const existing = resolvedGames.find(g => g.gameId === gameId);
-                if (!existing) {
-                    const block = await provider.getBlock(log.blockNumber);
-                    const localDate = new Date(block.timestamp * 1000).toLocaleString();
-                    const result = winner === account.toLowerCase() ? 'Won' : 'Lost';
-                    newGames.push({
-                        gameId,
-                        player1,
-                        player2,
-                        tokenId1,
-                        tokenId2,
-                        image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
-                        image2: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId2}.png`,
-                        winner,
-                        result,
-                        resolved: true,
-                        viewed: false,
-                        localDate,
-                        transactionHash: log.transactionHash
-                    });
-                }
-            }
-        }
-        resolvedGames = [...resolvedGames, ...newGames].reduce((acc, game) => {
-            const existing = acc.find(g => g.gameId === game.gameId);
-            if (!existing) {
-                acc.push(game);
-            } else if (!existing.viewed) {
-                existing.viewed = game.viewed;
-                existing.localDate = game.localDate || existing.localDate;
-                if (game.resolved) {
-                    existing.resolved = true;
-                    existing.winner = game.winner;
-                    existing.result = game.result;
-                    existing.tokenId1 = game.tokenId1;
-                    existing.tokenId2 = game.tokenId2;
-                    existing.image1 = game.image1;
-                    existing.image2 = game.image2;
-                }
-            }
-            return acc;
-        }, []);
-        createdGames = createdGames.filter(cg => !newGames.some(ng => ng.gameId === cg.gameId));
-        joinedGames = joinedGames.filter(jg => !newGames.some(ng => ng.gameId === jg.gameId));
-        localStorage.setItem('resolvedGames', JSON.stringify(resolvedGames));
-        localStorage.setItem('createdGames', JSON.stringify(createdGames));
-        localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
-        localStorage.setItem('lastEventBlock', currentBlock.toString());
-        lastEventBlock = BigInt(currentBlock);
-        console.log('Fetched resolved games:', resolvedGames);
-        updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
-    } catch (err) {
-        console.error('Error fetching resolved games:', err);
-        updateStatus(`Error fetching history: ${err.message}`);
-    }
-}
-
+// Socket.IO event listeners
 socket.on('connect', () => {
     console.log('Connected to backend:', socket.id);
     if (account) {
@@ -361,26 +244,64 @@ socket.on('openGamesUpdate', (games) => {
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    const existingGame = [...resolvedGames, ...createdGames, ...joinedGames].find(g => g.gameId === data.gameId);
-    if (!existingGame) {
-        joinedGames.push({
-            gameId: data.gameId,
-            player1: data.player1,
-            tokenId1: data.tokenId1,
-            image1: data.image1,
-            player2: data.player2,
-            tokenId2: data.tokenId2,
-            image2: data.image2,
-            resolved: false,
-            result: null,
-            viewed: false,
-            localDate: new Date().toLocaleString(),
-            transactionHash: null
-        });
-        localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
-    }
-    updateResultsModal([...resolvedGames, ...createdGames, ...joinedGames], account);
+    resolvedGames.push({ 
+        gameId: data.gameId, 
+        player1: data.player1, 
+        tokenId1: data.tokenId1, 
+        image1: data.image1,
+        player2: data.player2, 
+        tokenId2: data.tokenId2, 
+        image2: data.image2,
+        resolved: false, 
+        userResolved: { [account?.toLowerCase() || '']: false }, 
+        viewed: { [account?.toLowerCase() || '']: false }
+    });
+    updateResultsModal(resolvedGames, account);
     updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
+    await fetchUserTokens();
+});
+
+socket.on('resolvedGames', (games) => {
+    console.log('Received resolvedGames:', games);
+    resolvedGames = games.map(game => ({
+        ...game,
+        userResolved: game.userResolved || { [account?.toLowerCase() || '']: false },
+        viewed: game.viewed || { [account?.toLowerCase() || '']: false }
+    }));
+    updateResultsModal(resolvedGames, account);
+});
+
+socket.on('gameResolution', async (data) => {
+    console.log('Received gameResolution:', data);
+    if (data.error) {
+        // Handle transient errors by retrying
+        if (data.error === 'Game not resolved or no winner') {
+            console.log(`Game ${data.gameId} not yet resolved, retrying...`);
+            setTimeout(() => {
+                socket.emit('fetchResolvedGames', { account });
+            }, 3000); // Retry after 3 seconds
+            return; // Keep loading state, don’t show error
+        }
+        // Definitive errors (e.g., game not found)
+        updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
+        isResolving = false;
+        return;
+    }
+    // Game resolved successfully
+    isResolving = false;
+    const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
+    updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
+    playResultVideo(
+        win ? '/win.mp4' : '/lose.mp4', 
+        win ? 'You Win!' : 'You Lose!', 
+        data.image1 || 'https://via.placeholder.com/64', 
+        data.image2 || 'https://via.placeholder.com/64'
+    );
+    if (account) {
+        socket.emit('markGameResolved', { gameId: data.gameId, account });
+    }
+    // Fetch the latest unresolved games from backend
+    socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
 });
 
@@ -405,15 +326,4 @@ socket.on('reconnect', (attempt) => {
 socket.on('reconnect_error', (error) => {
     console.error('Socket reconnection error:', error);
     updateStatus(`Socket reconnection error: ${error.message}`);
-});
-
-document.getElementById('connectWallet').addEventListener('click', initEthers);
-
-initializeUI({
-    socket,
-    getAccount: () => account,
-    getResolvedGames: () => [...resolvedGames, ...createdGames, ...joinedGames],
-    getUserTokens: () => userTokens,
-    setSelectedTokenId: (id) => { selectedTokenId = id; },
-    resolveGame
 });
