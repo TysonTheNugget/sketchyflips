@@ -12,29 +12,59 @@ const socket = io('https://sketchyflipback.onrender.com', {
 let provider, signer, account, gameContract, gameContractWithSigner, nftContract;
 let selectedTokenId = null;
 let userTokens = [];
-let resolvedGames = [];
 let isResolving = false;
 
-async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
-    const contract = new ethers.Contract(gameAddress, gameABI, provider);
-    const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
-    const filter = {
-        address: gameAddress,
-        topics: [
-            topic,
-            ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
-        ]
-    };
-    const logs = await provider.getLogs(filter);
-    if (logs.length > 0) {
-        const event = contract.interface.parseLog(logs[0]);
-        return {
-            winner: event.args.winner.toLowerCase(),
-            tokenId1: event.args.tokenId1.toString(),
-            tokenId2: event.args.tokenId2.toString()
-        };
+async function fetchGameHistory() {
+    if (!gameContract || !account) {
+        console.log('Cannot fetch game history: gameContract or account missing');
+        return [];
     }
-    return null;
+    try {
+        const gameStartedFilter = gameContract.filters.GameStarted(null, null, null, null);
+        const gameResultFilter = gameContract.filters.GameResult(null, null, null);
+        const [startEvents, resultEvents] = await Promise.all([
+            gameContract.queryFilter(gameStartedFilter),
+            gameContract.queryFilter(gameResultFilter)
+        ]);
+
+        const gamesMap = new Map();
+        startEvents.forEach(event => {
+            const { player1, player2, tokenId1, tokenId2 } = event.args;
+            if (player1.toLowerCase() === account.toLowerCase() || (player2 && player2.toLowerCase() === account.toLowerCase())) {
+                gamesMap.set(event.transactionHash, {
+                    gameId: event.transactionHash,
+                    player1: player1.toLowerCase(),
+                    player2: player2 ? player2.toLowerCase() : null,
+                    tokenId1: tokenId1.toString(),
+                    tokenId2: token2 ? token2.toString() : null,
+                    image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
+                    image2: token2 ? `https://f005.backblazeb2.com/file/sketchymilios/${token2}.png` : null,
+                    choice: player1.toLowerCase() === account.toLowerCase() ? true : false, // true for Heads, false for Tails
+                    resolved: false,
+                    createTimestamp: (await event.getBlock()).timestamp
+                });
+            }
+        });
+
+        resultEvents.forEach(event => {
+            const { winner, loser, result } = event.args;
+            const game = gamesMap.get(event.transactionHash);
+            if (game) {
+                game.resolved = true;
+                game.winner = winner.toLowerCase();
+                game.result = result;
+                game.joinTimestamp = (await event.getBlock()).timestamp;
+            }
+        });
+
+        const games = Array.from(gamesMap.values());
+        console.log('Fetched game history:', games);
+        return games;
+    } catch (error) {
+        console.error('Error fetching game history:', error);
+        updateStatus(`Error fetching game history: ${error.message}`);
+        return [];
+    }
 }
 
 async function resolveGame(gameId) {
@@ -48,54 +78,37 @@ async function resolveGame(gameId) {
         return;
     }
     isResolving = true;
-    updateStatus('Checking blockchain for result...');
+    updateStatus('Checking game result...');
     try {
-        // Try to get the result directly from the blockchain (frontend, fastest!)
-        const chainResult = await getGameWinnerOnChain(
-            gameId,
-            gameAddress,
-            gameABI,
-            provider // use your ethers.js provider (NOT signer)
-        );
-        if (chainResult) {
-            // Found winner on chain!
-            const win = account && chainResult.winner === account.toLowerCase();
-            updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-            playResultVideo(
-                win ? '/win.mp4' : '/lose.mp4',
-                win ? 'You Win!' : 'You Lose!',
-                `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId1}.png`,
-                `https://f005.backblazeb2.com/file/sketchymilios/${chainResult.tokenId2}.png`
-            );
-            socket.emit('markGameResolved', { gameId, account });
-            socket.emit('fetchResolvedGames', { account });
-            setTimeout(() => {
-                socket.emit('fetchResolvedGames', { account });
-            }, 2000);
-            await fetchUserTokens();
+        const games = await fetchGameHistory();
+        const game = games.find(g => g.gameId === gameId);
+        if (!game || !game.resolved) {
+            updateStatus(`Game #${gameId} not yet resolved.`);
             isResolving = false;
             return;
         }
-    } catch (err) {
-        // If there's an error querying chain, fallback to backend:
-        console.error('Blockchain query error, falling back to backend:', err);
+        const win = game.winner === account.toLowerCase();
+        playResultVideo(
+            win ? '/win.mp4' : '/lose.mp4',
+            win ? 'You Win!' : 'You Lose!',
+            game.image1,
+            game.image2
+        );
+        updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
+        socket.emit('markGameResolved', { gameId, account });
+        await fetchUserTokens();
+        isResolving = false;
+    } catch (error) {
+        console.error('Error resolving game:', error);
+        updateStatus(`Error resolving game: ${error.message}`);
+        isResolving = false;
     }
-    // Fallback: let backend handle as before
-    updateStatus('Loading... Checking game resolution...');
-    socket.emit('resolveGame', { gameId, account });
-    setTimeout(() => {
-        if (isResolving) {
-            isResolving = false;
-            updateStatus('Resolution timed out, please try again.');
-            socket.emit('fetchResolvedGames', { account });
-        }
-    }, 60000);
 }
 
 initializeUI({ 
     socket, 
     getAccount: () => account, 
-    getResolvedGames: () => resolvedGames, 
+    getResolvedGames: fetchGameHistory, 
     getUserTokens: () => userTokens, 
     setSelectedTokenId: (id) => { selectedTokenId = id; },
     resolveGame
@@ -121,7 +134,6 @@ document.getElementById('connectWallet').addEventListener('click', async () => {
         socket.emit('registerAddress', { address: account });
         await fetchUserTokens(true);
         updateStatus('Connected! Fetching games...');
-        socket.emit('fetchResolvedGames', { account });
     } catch (error) {
         console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
@@ -244,64 +256,7 @@ socket.on('openGamesUpdate', (games) => {
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    resolvedGames.push({ 
-        gameId: data.gameId, 
-        player1: data.player1, 
-        tokenId1: data.tokenId1, 
-        image1: data.image1,
-        player2: data.player2, 
-        tokenId2: data.tokenId2, 
-        image2: data.image2,
-        resolved: false, 
-        userResolved: { [account?.toLowerCase() || '']: false }, 
-        viewed: { [account?.toLowerCase() || '']: false }
-    });
-    updateResultsModal(resolvedGames, account);
     updateStatus(`Game #${data.gameId} joined by ${data.player2.slice(0, 6)}...${data.player2.slice(-4)}`);
-    await fetchUserTokens();
-});
-
-socket.on('resolvedGames', (games) => {
-    console.log('Received resolvedGames:', games);
-    resolvedGames = games.map(game => ({
-        ...game,
-        userResolved: game.userResolved || { [account?.toLowerCase() || '']: false },
-        viewed: game.viewed || { [account?.toLowerCase() || '']: false }
-    }));
-    updateResultsModal(resolvedGames, account);
-});
-
-socket.on('gameResolution', async (data) => {
-    console.log('Received gameResolution:', data);
-    if (data.error) {
-        // Handle transient errors by retrying
-        if (data.error === 'Game not resolved or no winner') {
-            console.log(`Game ${data.gameId} not yet resolved, retrying...`);
-            setTimeout(() => {
-                socket.emit('fetchResolvedGames', { account });
-            }, 3000); // Retry after 3 seconds
-            return; // Keep loading state, don’t show error
-        }
-        // Definitive errors (e.g., game not found)
-        updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
-        isResolving = false;
-        return;
-    }
-    // Game resolved successfully
-    isResolving = false;
-    const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
-    updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
-    playResultVideo(
-        win ? '/win.mp4' : '/lose.mp4', 
-        win ? 'You Win!' : 'You Lose!', 
-        data.image1 || 'https://via.placeholder.com/64', 
-        data.image2 || 'https://via.placeholder.com/64'
-    );
-    if (account) {
-        socket.emit('markGameResolved', { gameId: data.gameId, account });
-    }
-    // Fetch the latest unresolved games from backend
-    socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
 });
 
