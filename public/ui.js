@@ -22,8 +22,7 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
     });
 
     document.getElementById('resultsButton').addEventListener('click', async () => {
-    // force a full fetch of ALL past resolved games before showing modal
-        await window.fetchResolvedGames(true);  
+        await window.fetchResolvedGames(); // always fetch all resolved games
         updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
     });
 
