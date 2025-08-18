@@ -28,7 +28,7 @@ async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
         const logs = await provider.getLogs(filter);
         console.log('getGameWinnerOnChain: Found', logs.length, 'GameResult logs');
         for (const log of logs) {
-            const event = contract.interface.parseLog(log);
+            const parsedLog = contract.interface.parseLog(log);
             // Find corresponding GameStarted event to get tokenIds
             const startTopic = ethers.utils.id('GameStarted(address,address,uint256,uint256)');
             const startFilter = {
@@ -43,13 +43,13 @@ async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
                 const startParsed = contract.interface.parseLog(startEvent);
                 console.log('getGameWinnerOnChain: Matched GameStarted for tx:', log.transactionHash);
                 return {
-                    winner: event.args.winner.toLowerCase(),
+                    winner: parsedLog.args.winner.toLowerCase(),
                     tokenId1: startParsed.args.tokenId1.toString(),
                     tokenId2: startParsed.args.tokenId2.toString()
                 };
             }
         }
-        console.log('getGameWinnerOnChain: No matching GameResult found for gameId:', gameId);
+        console.log('getGameWinnerOnChain: No matching GameResult for gameId:', gameId);
         return null;
     } catch (error) {
         console.error('getGameWinnerOnChain: Error:', error);
@@ -59,10 +59,10 @@ async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
 
 async function fetchGameHistory() {
     if (!gameContract || !account) {
-        console.log('fetchGameHistory: Cannot fetch - missing gameContract or account');
+        console.log('fetchGameHistory: Missing gameContract or account');
         return resolvedGames;
     }
-    console.log('fetchGameHistory: Fetching for account:', account);
+    console.log('fetchGameHistory: Fetching for account:', account, 'on contract:', gameAddress);
     try {
         const contract = new ethers.Contract(gameAddress, gameABI, provider);
         const startTopic = ethers.utils.id('GameStarted(address,address,uint256,uint256)');
@@ -88,13 +88,13 @@ async function fetchGameHistory() {
             const parsed = contract.interface.parseLog(log);
             const { player1, player2, tokenId1, tokenId2 } = parsed.args;
             if (player1.toLowerCase() === account.toLowerCase() || (player2 && player2.toLowerCase() === account.toLowerCase())) {
-                console.log('fetchGameHistory: Found game for account, tx:', log.transactionHash);
+                console.log('fetchGameHistory: Found game - tx:', log.transactionHash, 'player1:', player1, 'player2:', player2);
                 gamesMap.set(log.transactionHash, {
                     gameId: log.transactionHash,
                     player1: player1.toLowerCase(),
                     player2: player2 ? player2.toLowerCase() : null,
                     tokenId1: tokenId1.toString(),
-                    tokenId2: token2 ? token2.toString() : null,
+                    tokenId2: token2 ? tokenId2.toString() : null,
                     image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
                     image2: token2 ? `https://f005.backblazeb2.com/file/sketchymilios/${token2}.png` : null,
                     choice: player1.toLowerCase() === account.toLowerCase() ? true : false,
@@ -112,7 +112,7 @@ async function fetchGameHistory() {
             const { winner, loser, result } = parsed.args;
             const game = gamesMap.get(log.transactionHash);
             if (game) {
-                console.log('fetchGameHistory: Found result for game, tx:', log.transactionHash);
+                console.log('fetchGameHistory: Found result - tx:', log.transactionHash, 'winner:', winner);
                 game.resolved = true;
                 game.winner = winner.toLowerCase();
                 game.result = result;
@@ -278,7 +278,7 @@ window.joinGameFromList = async (gameId) => {
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-    }show } catch (error) {
+    } catch (error) {
         console.error('joinGameFromList: Error:', error);
         updateStatus(`Error joining: ${error.message}`);
         if (error.code === -32603) {
