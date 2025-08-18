@@ -37,7 +37,7 @@ async function resolveGame(gameId) {
         return;
     }
     try {
-        const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
+        const topic = ethers.utils.id('GameResult(uint256,address,uint256,uint256)');
         const filter = {
             address: gameAddress,
             topics: [
@@ -93,15 +93,17 @@ async function fetchResolvedGames() {
     if (!account || !gameContract) return;
     try {
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = lastEventBlock === BigInt(0) ? 0 : Number(lastEventBlock) + 1;
+        const fromBlock = lastEventBlock === BigInt(0) ? 1000000 : Number(lastEventBlock) + 1; // Start from contract deployment block
         const batchSize = 1000;
         const newGames = [];
         for (let start = fromBlock; start <= currentBlock; start += batchSize) {
             const end = Math.min(start + batchSize - 1, currentBlock);
-            const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
+            const topic = ethers.utils.id('GameResult(uint256,address,uint256,uint256)');
             const filter = {
                 address: gameAddress,
-                topics: [topic]
+                topics: [topic],
+                fromBlock: start,
+                toBlock: end
             };
             const logs = await provider.getLogs(filter);
             for (const log of logs) {
@@ -181,7 +183,7 @@ async function initEthers() {
         updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
         setInterval(fetchResolvedGames, 30000);
         setInterval(() => socket.emit('fetchOpenGames', { account }), 10000);
-    } Homecatch (error) {
+    } catch (error) {
         console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
         if (error.code === -32603) {
