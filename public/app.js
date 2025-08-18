@@ -18,29 +18,41 @@ let isResolving = false;
 async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
     try {
         const contract = new ethers.Contract(gameAddress, gameABI, provider);
-        const gameStartedFilter = contract.filters.GameStarted(null, null, null, null);
-        const gameResultFilter = contract.filters.GameResult(null, null, null);
-        const startEvents = await contract.queryFilter(gameStartedFilter);
-        const resultEvents = await contract.queryFilter(gameResultFilter);
-
-        // Find the matching GameStarted event for the gameId (assuming backend gameId maps to transaction hash or index)
-        const startEvent = startEvents.find(event => event.transactionHash === gameId);
-        if (!startEvent) return null;
-
-        // Find the corresponding GameResult event in the same transaction
-        const resultEvent = resultEvents.find(event => event.transactionHash === startEvent.transactionHash);
-        if (!resultEvent) return null;
-
-        const { winner, loser, result } = resultEvent.args;
-        const { tokenId1, tokenId2 } = startEvent.args;
-
-        return {
-            winner: winner.toLowerCase(),
-            loser: loser.toLowerCase(),
-            result: result,
-            tokenId1: tokenId1.toString(),
-            tokenId2: tokenId2.toString()
+        // Use raw log filtering to avoid potential reserved word issues
+        const gameResultTopic = ethers.utils.id('GameResult(address,address,bool)');
+        const gameStartedTopic = ethers.utils.id('GameStarted(address,address,uint256,uint256)');
+        const filter = {
+            address: gameAddress,
+            topics: [gameResultTopic],
+            fromBlock: 0
         };
+        const logs = await provider.getLogs(filter);
+        for (const log of logs) {
+            const parsedLog = contract.interface.parseLog(log);
+            if (parsedLog.name === 'GameResult' && log.transactionHash === gameId) {
+                const { winner, loser, result } = parsedLog.args;
+                // Fetch corresponding GameStarted event in the same transaction
+                const startFilter = {
+                    address: gameAddress,
+                    topics: [gameStartedTopic],
+                    fromBlock: log.blockNumber,
+                    toBlock: log.blockNumber
+                };
+                const startLogs = await provider.getLogs(startFilter);
+                const startLog = startLogs.find(sLog => sLog.transactionHash === log.transactionHash);
+                if (!startLog) return null;
+                const startParsed = contract.interface.parseLog(startLog);
+                const { tokenId1, tokenId2 } = startParsed.args;
+                return {
+                    winner: winner.toLowerCase(),
+                    loser: loser.toLowerCase(),
+                    result: result,
+                    tokenId1: tokenId1.toString(),
+                    tokenId2: tokenId2.toString()
+                };
+            }
+        }
+        return null;
     } catch (error) {
         console.error('Error in getGameWinnerOnChain:', error);
         return null;
@@ -53,53 +65,58 @@ async function fetchGameHistory() {
         return resolvedGames;
     }
     try {
-        const gameStartedFilter = gameContract.filters.GameStarted(null, null, null, null);
-        const gameResultFilter = gameContract.filters.GameResult(null, null, null);
-        const [startEvents, resultEvents] = await Promise.all([
-            gameContract.queryFilter(gameStartedFilter),
-            gameContract.queryFilter(gameResultFilter)
-        ]);
+        const gameStartedTopic = ethers.utils.id('GameStarted(address,address,uint256,uint256)');
+        const gameResultTopic = ethers.utils.id('GameResult(address,address,bool)');
+        const filter = {
+            address: gameAddress,
+            topics: [gameStartedTopic],
+            fromBlock: 0
+        };
+        const startLogs = await provider.getLogs(filter);
+        const resultLogs = await provider.getLogs({ ...filter, topics: [gameResultTopic] });
 
         const gamesMap = new Map();
-        startEvents.forEach(event => {
-            const { player1, player2, tokenId1, tokenId2 } = event.args;
+        for (const log of startLogs) {
+            const parsedLog = gameContract.interface.parseLog(log);
+            const { player1, player2, tokenId1, tokenId2 } = parsedLog.args;
             if (player1.toLowerCase() === account.toLowerCase() || (player2 && player2.toLowerCase() === account.toLowerCase())) {
-                gamesMap.set(event.transactionHash, {
-                    gameId: event.transactionHash,
+                gamesMap.set(log.transactionHash, {
+                    gameId: log.transactionHash,
                     player1: player1.toLowerCase(),
                     player2: player2 ? player2.toLowerCase() : null,
                     tokenId1: tokenId1.toString(),
                     tokenId2: token2 ? token2.toString() : null,
                     image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
                     image2: token2 ? `https://f005.backblazeb2.com/file/sketchymilios/${token2}.png` : null,
-                    choice: player1.toLowerCase() === account.toLowerCase() ? true : false, // true for Heads, false for Tails
+                    choice: player1.toLowerCase() === account.toLowerCase() ? true : false,
                     resolved: false,
-                    createTimestamp: (await event.getBlock()).timestamp,
-                    joinTimestamp: player2 ? (await event.getBlock()).timestamp : null,
+                    createTimestamp: (await provider.getBlock(log.blockNumber)).timestamp,
+                    joinTimestamp: player2 ? (await provider.getBlock(log.blockNumber)).timestamp : null,
                     userResolved: { [account.toLowerCase()]: false },
                     viewed: { [account.toLowerCase()]: false }
                 });
             }
-        });
+        }
 
-        resultEvents.forEach(event => {
-            const { winner, loser, result } = event.args;
-            const game = gamesMap.get(event.transactionHash);
+        for (const log of resultLogs) {
+            const parsedLog = gameContract.interface.parseLog(log);
+            const { winner, loser, result } = parsedLog.args;
+            const game = gamesMap.get(log.transactionHash);
             if (game) {
                 game.resolved = true;
                 game.winner = winner.toLowerCase();
                 game.result = result;
-                game.joinTimestamp = (await event.getBlock()).timestamp;
+                game.joinTimestamp = (await provider.getBlock(log.blockNumber)).timestamp;
             }
-        });
+        }
 
         const onChainGames = Array.from(gamesMap.values());
-        // Merge with existing resolvedGames from backend
+        // Merge with backend resolvedGames, preserving numeric gameId
         const mergedGames = [...resolvedGames];
         onChainGames.forEach(ocGame => {
             const existing = mergedGames.find(g => g.gameId === ocGame.gameId);
             if (!existing) {
-                mergedGames.push(ocGame);
+                mergedGames.push({ ...ocGame, gameId: `onchain_${ocGame.gameId}` });
             } else {
                 Object.assign(existing, ocGame);
             }
