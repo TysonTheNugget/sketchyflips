@@ -29,7 +29,6 @@ async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
         console.log('getGameWinnerOnChain: Found', logs.length, 'GameResult logs');
         for (const log of logs) {
             const parsedLog = contract.interface.parseLog(log);
-            // Find corresponding GameStarted event to get tokenIds
             const startTopic = ethers.utils.id('GameStarted(address,address,uint256,uint256)');
             const startFilter = {
                 address: gameAddress,
@@ -45,7 +44,8 @@ async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
                 return {
                     winner: parsedLog.args.winner.toLowerCase(),
                     tokenId1: startParsed.args.tokenId1.toString(),
-                    tokenId2: startParsed.args.tokenId2.toString()
+                    tokenId2: startParsed.args.tokenId2.toString(),
+                    result: parsedLog.args.result ? 'Won' : 'Lost'
                 };
             }
         }
@@ -89,6 +89,7 @@ async function fetchGameHistory() {
             const { player1, player2, tokenId1, tokenId2 } = parsed.args;
             if (player1.toLowerCase() === account.toLowerCase() || (player2 && player2.toLowerCase() === account.toLowerCase())) {
                 console.log('fetchGameHistory: Found game - tx:', log.transactionHash, 'player1:', player1, 'player2:', player2);
+                const localDate = new Date((await provider.getBlock(log.blockNumber)).timestamp * 1000).toLocaleString();
                 gamesMap.set(log.transactionHash, {
                     gameId: log.transactionHash,
                     player1: player1.toLowerCase(),
@@ -96,11 +97,10 @@ async function fetchGameHistory() {
                     tokenId1: tokenId1.toString(),
                     tokenId2: token2 ? tokenId2.toString() : null,
                     image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
-                    image2: token2 ? `https://f005.backblazeb2.com/file/sketchymilios/${token2}.png` : null,
+                    image2: token2 ? `https://f005.backblazeb2.com/file/sketchymilios/${tokenId2}.png` : null,
                     choice: player1.toLowerCase() === account.toLowerCase() ? true : false,
                     resolved: false,
-                    createTimestamp: (await provider.getBlock(log.blockNumber)).timestamp,
-                    joinTimestamp: player2 ? (await provider.getBlock(log.blockNumber)).timestamp : null,
+                    localDate: localDate,
                     userResolved: { [account.toLowerCase()]: false },
                     viewed: { [account.toLowerCase()]: false }
                 });
@@ -115,8 +115,8 @@ async function fetchGameHistory() {
                 console.log('fetchGameHistory: Found result - tx:', log.transactionHash, 'winner:', winner);
                 game.resolved = true;
                 game.winner = winner.toLowerCase();
-                game.result = result;
-                game.joinTimestamp = (await provider.getBlock(log.blockNumber)).timestamp;
+                game.result = winner.toLowerCase() === account.toLowerCase() ? 'Won' : 'Lost';
+                game.localDate = new Date((await provider.getBlock(log.blockNumber)).timestamp * 1000).toLocaleString();
             }
         }
 
@@ -366,6 +366,7 @@ socket.on('gameJoined', async (data) => {
         tokenId2: data.tokenId2,
         image2: data.image2,
         resolved: false,
+        localDate: new Date().toLocaleString(),
         userResolved: { [account?.toLowerCase() || '']: false },
         viewed: { [account?.toLowerCase() || '']: false }
     });
