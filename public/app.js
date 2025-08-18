@@ -278,7 +278,7 @@ window.joinGameFromList = async (gameId) => {
         await fetchUserTokens();
         selectedTokenId = null;
         document.getElementById('selectedNFT').innerHTML = 'Your Sketchy';
-    }shoe } catch (error) {
+    }show } catch (error) {
         console.error('joinGameFromList: Error:', error);
         updateStatus(`Error joining: ${error.message}`);
         if (error.code === -32603) {
