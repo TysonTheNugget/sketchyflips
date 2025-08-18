@@ -241,7 +241,10 @@ export function updateResultsModal(games, account, resolveGame) {
         refreshBtn.id = 'refreshHistoryBtn';
         refreshBtn.className = 'neon-button text-sm py-1 px-2 mt-2 w-full';
         refreshBtn.textContent = 'Refresh History';
-        refreshBtn.onclick = () => window.fetchResolvedGames();
+        refreshBtn.onclick = async () => {
+            await window.fetchResolvedGames();
+            updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
+        };
         resultsModalList.after(refreshBtn);
     }
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
