@@ -94,7 +94,7 @@ async function fetchResolvedGames() {
     if (!account || !gameContract) return;
     try {
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = lastEventBlock === BigInt(0) ? 1000000 : Number(lastEventBlock) + 1;
+        const fromBlock = lastEventBlock === BigInt(0) ? 0 : Number(lastEventBlock) + 1;
         const batchSize = 1000;
         const newGames = [];
         for (let start = fromBlock; start <= currentBlock; start += batchSize) {
@@ -160,6 +160,8 @@ async function fetchResolvedGames() {
         updateStatus(`Error fetching history: ${err.message}`);
     }
 }
+
+window.fetchResolvedGames = fetchResolvedGames;
 
 async function initEthers() {
     if (!window.ethereum) {

@@ -21,9 +21,10 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         document.getElementById('nftModal').style.display = 'block';
     });
 
-    document.getElementById('resultsButton').addEventListener('click', (e) => {
+    document.getElementById('resultsButton').addEventListener('click', async (e) => {
         e.stopPropagation();
         console.log('Results button clicked, opening modal');
+        await window.fetchResolvedGames();
         updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
         document.getElementById('resultsModal').style.display = 'block';
     });
