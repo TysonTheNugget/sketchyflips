@@ -17,6 +17,7 @@ let createdGames = JSON.parse(localStorage.getItem('createdGames')) || [];
 let joinedGames = JSON.parse(localStorage.getItem('joinedGames')) || [];
 let isResolving = false;
 let lastEventBlock = BigInt(localStorage.getItem('lastEventBlock') || '0');
+let isConnecting = false;
 
 async function resolveGame(gameId) {
     if (isResolving) {
@@ -93,7 +94,7 @@ async function fetchResolvedGames() {
     if (!account || !gameContract) return;
     try {
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = lastEventBlock === BigInt(0) ? 1000000 : Number(lastEventBlock) + 1; // Start from contract deployment block
+        const fromBlock = lastEventBlock === BigInt(0) ? 1000000 : Number(lastEventBlock) + 1;
         const batchSize = 1000;
         const newGames = [];
         for (let start = fromBlock; start <= currentBlock; start += batchSize) {
@@ -165,6 +166,11 @@ async function initEthers() {
         updateStatus('Install MetaMask.');
         return;
     }
+    if (isConnecting) {
+        updateStatus('Already processing wallet connection. Please wait.');
+        return;
+    }
+    isConnecting = true;
     try {
         provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
@@ -186,11 +192,17 @@ async function initEthers() {
     } catch (error) {
         console.error('Error connecting wallet:', error);
         updateStatus(`Connection error: ${error.message}`);
-        if (error.code === -32603) {
-            updateStatus('RPC Error: Disconnect MetaMask from the website and reconnect.');
+        if (error.code === 4001) {
+            updateStatus('Connection rejected by user.');
+        } else if (error.message.includes('eth_requestAccounts')) {
+            updateStatus('Already processing wallet connection. Please wait.');
         }
+    } finally {
+        isConnecting = false;
     }
 }
+
+document.getElementById('connectWallet').addEventListener('click', initEthers);
 
 document.getElementById('createGameBtn').addEventListener('click', async () => {
     if (!gameContractWithSigner) return updateStatus('Connect wallet first.');
@@ -388,8 +400,6 @@ socket.on('reconnect_error', (error) => {
     console.error('Socket reconnection error:', error);
     updateStatus(`Socket reconnection error: ${error.message}`);
 });
-
-document.getElementById('connectWallet').addEventListener('click', initEthers);
 
 initializeUI({
     socket,
