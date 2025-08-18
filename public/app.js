@@ -16,26 +16,35 @@ let resolvedGames = [];
 let isResolving = false;
 
 async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
-    const contract = new ethers.Contract(gameAddress, gameABI, provider);
-    const topic = ethers.utils.id('GameResult(address,address,bool)');
-    const filter = {
-        address: gameAddress,
-        topics: [topic]
-    };
-    const logs = await provider.getLogs(filter);
-    for (const log of logs) {
-        const event = contract.interface.parseLog(log);
-        if (event.args.winner && event.args.loser) {
-            return {
-                winner: event.args.winner.toLowerCase(),
-                loser: event.args.loser.toLowerCase(),
-                result: event.args.result,
-                tokenId1: (await contract.queryFilter(contract.filters.GameStarted(null, null, null, null), log.blockNumber, log.blockNumber))[0]?.args.tokenId1.toString(),
-                tokenId2: (await contract.queryFilter(contract.filters.GameStarted(null, null, null, null), log.blockNumber, log.blockNumber))[0]?.args.tokenId2.toString()
-            };
-        }
+    try {
+        const contract = new ethers.Contract(gameAddress, gameABI, provider);
+        const gameStartedFilter = contract.filters.GameStarted(null, null, null, null);
+        const gameResultFilter = contract.filters.GameResult(null, null, null);
+        const startEvents = await contract.queryFilter(gameStartedFilter);
+        const resultEvents = await contract.queryFilter(gameResultFilter);
+
+        // Find the matching GameStarted event for the gameId (assuming backend gameId maps to transaction hash or index)
+        const startEvent = startEvents.find(event => event.transactionHash === gameId);
+        if (!startEvent) return null;
+
+        // Find the corresponding GameResult event in the same transaction
+        const resultEvent = resultEvents.find(event => event.transactionHash === startEvent.transactionHash);
+        if (!resultEvent) return null;
+
+        const { winner, loser, result } = resultEvent.args;
+        const { tokenId1, tokenId2 } = startEvent.args;
+
+        return {
+            winner: winner.toLowerCase(),
+            loser: loser.toLowerCase(),
+            result: result,
+            tokenId1: tokenId1.toString(),
+            tokenId2: tokenId2.toString()
+        };
+    } catch (error) {
+        console.error('Error in getGameWinnerOnChain:', error);
+        return null;
     }
-    return null;
 }
 
 async function fetchGameHistory() {
