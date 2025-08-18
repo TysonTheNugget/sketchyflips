@@ -16,119 +16,25 @@ let resolvedGames = [];
 let isResolving = false;
 
 async function getGameWinnerOnChain(gameId, gameAddress, gameABI, provider) {
-    try {
-        const contract = new ethers.Contract(gameAddress, gameABI, provider);
-        // Use raw log filtering to avoid potential reserved word issues
-        const gameResultTopic = ethers.utils.id('GameResult(address,address,bool)');
-        const gameStartedTopic = ethers.utils.id('GameStarted(address,address,uint256,uint256)');
-        const filter = {
-            address: gameAddress,
-            topics: [gameResultTopic],
-            fromBlock: 0
+    const contract = new ethers.Contract(gameAddress, gameABI, provider);
+    const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
+    const filter = {
+        address: gameAddress,
+        topics: [
+            topic,
+            ethers.utils.hexZeroPad(ethers.utils.hexValue(Number(gameId)), 32)
+        ]
+    };
+    const logs = await provider.getLogs(filter);
+    if (logs.length > 0) {
+        const event = contract.interface.parseLog(logs[0]);
+        return {
+            winner: event.args.winner.toLowerCase(),
+            tokenId1: event.args.tokenId1.toString(),
+            tokenId2: event.args.tokenId2.toString()
         };
-        const logs = await provider.getLogs(filter);
-        for (const log of logs) {
-            const parsedLog = contract.interface.parseLog(log);
-            if (parsedLog.name === 'GameResult' && log.transactionHash === gameId) {
-                const { winner, loser, result } = parsedLog.args;
-                // Fetch corresponding GameStarted event in the same transaction
-                const startFilter = {
-                    address: gameAddress,
-                    topics: [gameStartedTopic],
-                    fromBlock: log.blockNumber,
-                    toBlock: log.blockNumber
-                };
-                const startLogs = await provider.getLogs(startFilter);
-                const startLog = startLogs.find(sLog => sLog.transactionHash === log.transactionHash);
-                if (!startLog) return null;
-                const startParsed = contract.interface.parseLog(startLog);
-                const { tokenId1, tokenId2 } = startParsed.args;
-                return {
-                    winner: winner.toLowerCase(),
-                    loser: loser.toLowerCase(),
-                    result: result,
-                    tokenId1: tokenId1.toString(),
-                    tokenId2: tokenId2.toString()
-                };
-            }
-        }
-        return null;
-    } catch (error) {
-        console.error('Error in getGameWinnerOnChain:', error);
-        return null;
     }
-}
-
-async function fetchGameHistory() {
-    if (!gameContract || !account) {
-        console.log('Cannot fetch game history: gameContract or account missing');
-        return resolvedGames;
-    }
-    try {
-        const gameStartedTopic = ethers.utils.id('GameStarted(address,address,uint256,uint256)');
-        const gameResultTopic = ethers.utils.id('GameResult(address,address,bool)');
-        const filter = {
-            address: gameAddress,
-            topics: [gameStartedTopic],
-            fromBlock: 0
-        };
-        const startLogs = await provider.getLogs(filter);
-        const resultLogs = await provider.getLogs({ ...filter, topics: [gameResultTopic] });
-
-        const gamesMap = new Map();
-        for (const log of startLogs) {
-            const parsedLog = gameContract.interface.parseLog(log);
-            const { player1, player2, tokenId1, tokenId2 } = parsedLog.args;
-            if (player1.toLowerCase() === account.toLowerCase() || (player2 && player2.toLowerCase() === account.toLowerCase())) {
-                gamesMap.set(log.transactionHash, {
-                    gameId: log.transactionHash,
-                    player1: player1.toLowerCase(),
-                    player2: player2 ? player2.toLowerCase() : null,
-                    tokenId1: tokenId1.toString(),
-                    tokenId2: token2 ? token2.toString() : null,
-                    image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
-                    image2: token2 ? `https://f005.backblazeb2.com/file/sketchymilios/${token2}.png` : null,
-                    choice: player1.toLowerCase() === account.toLowerCase() ? true : false,
-                    resolved: false,
-                    createTimestamp: (await provider.getBlock(log.blockNumber)).timestamp,
-                    joinTimestamp: player2 ? (await provider.getBlock(log.blockNumber)).timestamp : null,
-                    userResolved: { [account.toLowerCase()]: false },
-                    viewed: { [account.toLowerCase()]: false }
-                });
-            }
-        }
-
-        for (const log of resultLogs) {
-            const parsedLog = gameContract.interface.parseLog(log);
-            const { winner, loser, result } = parsedLog.args;
-            const game = gamesMap.get(log.transactionHash);
-            if (game) {
-                game.resolved = true;
-                game.winner = winner.toLowerCase();
-                game.result = result;
-                game.joinTimestamp = (await provider.getBlock(log.blockNumber)).timestamp;
-            }
-        }
-
-        const onChainGames = Array.from(gamesMap.values());
-        // Merge with backend resolvedGames, preserving numeric gameId
-        const mergedGames = [...resolvedGames];
-        onChainGames.forEach(ocGame => {
-            const existing = mergedGames.find(g => g.gameId === ocGame.gameId);
-            if (!existing) {
-                mergedGames.push({ ...ocGame, gameId: `onchain_${ocGame.gameId}` });
-            } else {
-                Object.assign(existing, ocGame);
-            }
-        });
-        resolvedGames = mergedGames;
-        console.log('Fetched and merged game history:', resolvedGames);
-        return resolvedGames;
-    } catch (error) {
-        console.error('Error fetching game history:', error);
-        updateStatus(`Error fetching game history: ${error.message}`);
-        return resolvedGames;
-    }
+    return null;
 }
 
 async function resolveGame(gameId) {
@@ -144,8 +50,15 @@ async function resolveGame(gameId) {
     isResolving = true;
     updateStatus('Checking blockchain for result...');
     try {
-        const chainResult = await getGameWinnerOnChain(gameId, gameAddress, gameABI, provider);
+        // Try to get the result directly from the blockchain (frontend, fastest!)
+        const chainResult = await getGameWinnerOnChain(
+            gameId,
+            gameAddress,
+            gameABI,
+            provider // use your ethers.js provider (NOT signer)
+        );
         if (chainResult) {
+            // Found winner on chain!
             const win = account && chainResult.winner === account.toLowerCase();
             updateStatus(`Game #${gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
             playResultVideo(
@@ -164,8 +77,10 @@ async function resolveGame(gameId) {
             return;
         }
     } catch (err) {
+        // If there's an error querying chain, fallback to backend:
         console.error('Blockchain query error, falling back to backend:', err);
     }
+    // Fallback: let backend handle as before
     updateStatus('Loading... Checking game resolution...');
     socket.emit('resolveGame', { gameId, account });
     setTimeout(() => {
@@ -177,11 +92,11 @@ async function resolveGame(gameId) {
     }, 60000);
 }
 
-initializeUI({
-    socket,
-    getAccount: () => account,
-    getResolvedGames: fetchGameHistory,
-    getUserTokens: () => userTokens,
+initializeUI({ 
+    socket, 
+    getAccount: () => account, 
+    getResolvedGames: () => resolvedGames, 
+    getUserTokens: () => userTokens, 
     setSelectedTokenId: (id) => { selectedTokenId = id; },
     resolveGame
 });
@@ -329,16 +244,16 @@ socket.on('openGamesUpdate', (games) => {
 
 socket.on('gameJoined', async (data) => {
     console.log('Received gameJoined:', data);
-    resolvedGames.push({
-        gameId: data.gameId,
-        player1: data.player1,
-        tokenId1: data.tokenId1,
+    resolvedGames.push({ 
+        gameId: data.gameId, 
+        player1: data.player1, 
+        tokenId1: data.tokenId1, 
         image1: data.image1,
-        player2: data.player2,
-        tokenId2: data.tokenId2,
+        player2: data.player2, 
+        tokenId2: data.tokenId2, 
         image2: data.image2,
-        resolved: false,
-        userResolved: { [account?.toLowerCase() || '']: false },
+        resolved: false, 
+        userResolved: { [account?.toLowerCase() || '']: false }, 
         viewed: { [account?.toLowerCase() || '']: false }
     });
     updateResultsModal(resolvedGames, account);
@@ -359,29 +274,33 @@ socket.on('resolvedGames', (games) => {
 socket.on('gameResolution', async (data) => {
     console.log('Received gameResolution:', data);
     if (data.error) {
+        // Handle transient errors by retrying
         if (data.error === 'Game not resolved or no winner') {
             console.log(`Game ${data.gameId} not yet resolved, retrying...`);
             setTimeout(() => {
                 socket.emit('fetchResolvedGames', { account });
-            }, 3000);
-            return;
+            }, 3000); // Retry after 3 seconds
+            return; // Keep loading state, don’t show error
         }
+        // Definitive errors (e.g., game not found)
         updateStatus(`Error resolving game #${data.gameId}: ${data.error}`);
         isResolving = false;
         return;
     }
+    // Game resolved successfully
     isResolving = false;
     const win = account && data.winner && data.winner.toLowerCase() === account.toLowerCase();
     updateStatus(`Game #${data.gameId} resolved: ${win ? 'You Win!' : 'You Lose!'}`);
     playResultVideo(
-        win ? '/win.mp4' : '/lose.mp4',
-        win ? 'You Win!' : 'You Lose!',
-        data.image1 || 'https://via.placeholder.com/64',
+        win ? '/win.mp4' : '/lose.mp4', 
+        win ? 'You Win!' : 'You Lose!', 
+        data.image1 || 'https://via.placeholder.com/64', 
         data.image2 || 'https://via.placeholder.com/64'
     );
     if (account) {
         socket.emit('markGameResolved', { gameId: data.gameId, account });
     }
+    // Fetch the latest unresolved games from backend
     socket.emit('fetchResolvedGames', { account });
     await fetchUserTokens();
 });

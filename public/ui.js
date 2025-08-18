@@ -1,11 +1,13 @@
 let uiOptions = null;
 
 let isPlayingResultVideo = false;
+
 let lastResolvedGames, lastAccount, lastResolveGame;
 
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
    
+    // Modal event listeners
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
         document.getElementById('infoModal').style.display = 'block';
@@ -23,11 +25,10 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         document.getElementById('nftModal').style.display = 'block';
     });
 
-    document.getElementById('resultsButton').addEventListener('click', async (e) => {
+    document.getElementById('resultsButton').addEventListener('click', (e) => {
         e.stopPropagation();
         console.log('Results button clicked, opening modal');
-        const games = await getResolvedGames();
-        updateResultsModal(games, getAccount(), resolveGame);
+        updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
         document.getElementById('resultsModal').style.display = 'block';
     });
 
@@ -172,6 +173,7 @@ export function updateOpenGames(games, account) {
             ${actionButton}`;
         openGamesList.appendChild(li);
     });
+    // Add event listeners for dynamically created buttons
     document.querySelectorAll('.join-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             const gameId = button.getAttribute('data-game-id');
@@ -206,7 +208,7 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
     const unviewedCount = userGames.filter(game => game.resolved && !game.viewed[accountLower]).length;
     document.getElementById('resultsButton').classList.remove('hidden');
     if (userGames.length === 0) {
-        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No games played.</li>';
+        resultsModalList.innerHTML = '<li class="text-center text-xs opacity-70">No games.</li>';
         document.getElementById('resultsNotification').classList.add('hidden');
         return;
     }
@@ -217,10 +219,6 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         document.getElementById('resultsNotification').classList.add('hidden');
     }
     userGames.forEach(game => {
-        const isPlayer1 = game.player1.toLowerCase() === accountLower;
-        const opponent = isPlayer1 ? (game.player2 || 'N/A') : game.player1;
-        const userChoice = isPlayer1 ? 'Heads' : 'Tails';
-        const resultText = game.resolved ? (game.winner === accountLower ? 'Win' : 'Loss') : 'Pending';
         let buttonText = '';
         let disabled = '';
         if (!game.resolved) {
@@ -237,17 +235,14 @@ export function updateResultsModal(resolvedGames, account, resolveGame) {
         li.innerHTML = `
             <div>
                 <div class="font-bold text-xs">Game #${game.gameId}</div>
-                <div class="text-xs">Opponent: ${opponent.slice(0, 6)}...${opponent.slice(-4)}</div>
-                <div class="text-xs">Your NFT: #${isPlayer1 ? game.tokenId1 : game.tokenId2 || 'N/A'}</div>
-                <div class="text-xs">Opponent NFT: #${isPlayer1 ? game.tokenId2 || 'N/A' : game.tokenId1}</div>
-                <div class="text-xs">Your Choice: ${userChoice}</div>
-                <div class="text-xs">Result: ${resultText}</div>
+                <div class="text-xs">NFT #${game.tokenId1} vs ${game.tokenId2 || 'N/A'}</div>
                 <div class="text-xs opacity-70">Created: ${new Date(Number(game.createTimestamp) * 1000).toLocaleString()}</div>
                 ${game.joinTimestamp && Number(game.joinTimestamp) > 0 ? `<div class="text-xs opacity-70">Joined: ${new Date(Number(game.joinTimestamp) * 1000).toLocaleString()}</div>` : ''}
             </div>
             ${resolveButton}`;
         resultsModalList.appendChild(li);
     });
+    // Add event listeners for resolve buttons
     document.querySelectorAll('.resolve-game-btn').forEach(button => {
         button.addEventListener('click', () => {
             if (!uiOptions.getAccount()) {
