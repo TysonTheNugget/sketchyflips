@@ -139,7 +139,7 @@ export function selectNFT(tokenId, image) {
     } else {
         console.error('setSelectedTokenId is not available');
     }
-    document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${tokenId}</p>`;
+    document.getElementById('selectedNFT').innerHTML = `<img src="${image}" alt="NFT #${tokenId}" class="w-8 h-8 inline-block mr-1 rounded border border-orange-500"><p class="inline text-xs">NFT #${token.id}</p>`;
     document.getElementById('nftModal').style.display = 'none';
 }
 
@@ -218,7 +218,7 @@ export function updateResultsModal(games, account, resolveGame) {
     }
     userGames.forEach(game => {
         const isResolved = game.resolved;
-        const win = isResolved && game.winner === accountLower;
+        const win = isResolved && game.result === 'Won';
         const resultText = isResolved ? (win ? 'You Win!' : 'You Lose!') : 'Result Pending';
         const buttonText = isResolved ? (game.viewed ? 'Replay' : 'Resolve') : 'Pending';
         const disabled = isResolved ? '' : 'disabled';

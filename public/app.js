@@ -52,7 +52,8 @@ async function resolveGame(gameId) {
             const tokenId1 = event.args.tokenId1.toString();
             const tokenId2 = event.args.tokenId2.toString();
             const win = account && winner === account.toLowerCase();
-            game.winner = winner;
+            const block = await provider.getBlock(logs[0].blockNumber);
+            const localDate = new Date(block.timestamp * 1000).toLocaleString();
             game.tokenId1 = tokenId1;
             game.tokenId2 = tokenId2;
             game.image1 = `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`;
@@ -60,6 +61,7 @@ async function resolveGame(gameId) {
             game.resolved = true;
             game.result = win ? 'Won' : 'Lost';
             game.viewed = true;
+            game.localDate = localDate;
             game.transactionHash = logs[0].transactionHash;
             if (!notifications.some(g => g.gameId === gameId)) {
                 notifications.push(game);
@@ -85,6 +87,78 @@ async function resolveGame(gameId) {
         updateStatus(`Error resolving game: ${err.message}`);
     }
     isResolving = false;
+}
+
+async function fetchResolvedGames() {
+    if (!account || !gameContract) return;
+    try {
+        const currentBlock = await provider.getBlockNumber();
+        let fromBlock = Number(lastEventBlock) + 1;
+        if (lastEventBlock === BigInt(0)) fromBlock = 0;
+        const batchSize = 1000;
+        const newGames = [];
+        for (let start = fromBlock; start <= currentBlock; start += batchSize) {
+            const end = Math.min(start + batchSize - 1, currentBlock);
+            const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
+            const filter = {
+                address: gameAddress,
+                topics: [topic],
+                fromBlock: start,
+                toBlock: end
+            };
+            const logs = await provider.getLogs(filter);
+            for (const log of logs) {
+                const event = gameContract.interface.parseLog(log);
+                const gameId = event.args[0].toString();
+                const winner = event.args[1].toLowerCase();
+                const tokenId1 = event.args[2].toString();
+                const tokenId2 = event.args[3].toString();
+                const game = await gameContract.getGame(BigInt(gameId));
+                const player1 = game.player1.toLowerCase();
+                const player2 = game.player2.toLowerCase();
+                if (player1 === account.toLowerCase() || player2 === account.toLowerCase()) {
+                    const existing = notifications.find(g => g.gameId === gameId);
+                    if (!existing) {
+                        const block = await provider.getBlock(log.blockNumber);
+                        const localDate = new Date(block.timestamp * 1000).toLocaleString();
+                        const result = winner === account.toLowerCase() ? 'Won' : 'Lost';
+                        newGames.push({
+                            gameId,
+                            player1,
+                            player2,
+                            tokenId1,
+                            tokenId2,
+                            image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
+                            image2: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId2}.png`,
+                            winner,
+                            result,
+                            resolved: true,
+                            viewed: false,
+                            localDate,
+                            transactionHash: log.transactionHash
+                        });
+                    }
+                }
+            }
+        }
+        notifications = [...notifications, ...newGames].reduce((acc, game) => {
+            const existing = acc.find(g => g.gameId === game.gameId);
+            if (!existing) acc.push(game);
+            return acc;
+        }, []);
+        createdGames = createdGames.filter(cg => !newGames.some(ng => ng.gameId === cg.gameId));
+        joinedGames = joinedGames.filter(jg => !newGames.some(ng => ng.gameId === jg.gameId));
+        localStorage.setItem('notifications', JSON.stringify(notifications));
+        localStorage.setItem('createdGames', JSON.stringify(createdGames));
+        localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
+        localStorage.setItem('lastEventBlock', currentBlock.toString());
+        lastEventBlock = BigInt(currentBlock);
+        console.log('Fetched resolved games:', notifications);
+        updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
+    } catch (err) {
+        console.error('Error fetching resolved games:', err);
+        updateStatus(`Error fetching history: ${err.message}`);
+    }
 }
 
 async function initEthers() {
@@ -252,87 +326,6 @@ async function fetchUserTokens(showLoading = false) {
         updateStatus(`Tokens fetch error: ${error.message}`);
         nftGrid.innerHTML = '<p class="text-center text-red-500 text-xs">Error loading NFTs</p>';
         if (showLoading) hideLoadingScreen();
-    }
-}
-
-async function fetchResolvedGames() {
-    if (!account || !gameContract) return;
-    try {
-        const currentBlock = await provider.getBlockNumber();
-        const fromBlock = Number(lastEventBlock) === 0 ? Math.max(currentBlock - 10000, 0) : Number(lastEventBlock) + 1;
-        const topic = ethers.utils.id('GameResolved(uint256,address,uint256,uint256)');
-        const filter = {
-            address: gameAddress,
-            topics: [topic],
-            fromBlock,
-            toBlock: currentBlock
-        };
-        const logs = await provider.getLogs(filter);
-        const newGames = [];
-        for (const log of logs) {
-            const event = gameContract.interface.parseLog(log);
-            const gameId = event.args[0].toString();
-            const winner = event.args[1].toLowerCase();
-            const tokenId1 = event.args[2].toString();
-            const tokenId2 = event.args[3].toString();
-            const game = await gameContract.getGame(BigInt(gameId));
-            const player1 = game.player1.toLowerCase();
-            const player2 = game.player2.toLowerCase();
-            if (player1 === account.toLowerCase() || player2 === account.toLowerCase()) {
-                const existing = notifications.find(g => g.gameId === gameId);
-                if (!existing) {
-                    const block = await provider.getBlock(log.blockNumber);
-                    const localDate = new Date(block.timestamp * 1000).toLocaleString();
-                    const result = winner === account.toLowerCase() ? 'Won' : 'Lost';
-                    newGames.push({
-                        gameId,
-                        player1,
-                        player2,
-                        tokenId1,
-                        tokenId2,
-                        image1: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId1}.png`,
-                        image2: `https://f005.backblazeb2.com/file/sketchymilios/${tokenId2}.png`,
-                        winner,
-                        result,
-                        resolved: true,
-                        viewed: false,
-                        localDate,
-                        transactionHash: log.transactionHash
-                    });
-                }
-            }
-        }
-        notifications = [...notifications, ...newGames].reduce((acc, game) => {
-            const existing = acc.find(g => g.gameId === game.gameId);
-            if (!existing) {
-                acc.push(game);
-            } else if (!existing.viewed) {
-                existing.viewed = game.viewed;
-                existing.localDate = game.localDate || existing.localDate;
-                if (game.resolved) {
-                    existing.resolved = true;
-                    existing.winner = game.winner;
-                    existing.result = game.result;
-                    existing.tokenId1 = game.tokenId1;
-                    existing.tokenId2 = game.tokenId2;
-                    existing.image1 = game.image1;
-                    existing.image2 = game.image2;
-                }
-            }
-            return acc;
-        }, []);
-        createdGames = createdGames.filter(cg => !notifications.some(ng => ng.gameId === cg.gameId));
-        joinedGames = joinedGames.filter(jg => !notifications.some(ng => ng.gameId === jg.gameId));
-        localStorage.setItem('notifications', JSON.stringify(notifications));
-        localStorage.setItem('createdGames', JSON.stringify(createdGames));
-        localStorage.setItem('joinedGames', JSON.stringify(joinedGames));
-        localStorage.setItem('lastEventBlock', currentBlock.toString());
-        lastEventBlock = BigInt(currentBlock);
-        console.log('Fetched resolved games:', notifications);
-        updateResultsModal([...notifications, ...createdGames, ...joinedGames], account);
-    } catch (err) {
-        console.error('Error fetching resolved games:', err);
-        updateStatus(`Error fetching history: ${err.message}`);
     }
 }
 
