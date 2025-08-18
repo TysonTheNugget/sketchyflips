@@ -94,7 +94,7 @@ async function fetchResolvedGames() {
     if (!account || !gameContract) return;
     try {
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = lastEventBlock === BigInt(0) ? 0 : Number(lastEventBlock) + 1;
+        const fromBlock = 0; // always fetch all past resolved games
         const batchSize = 1000;
         const newGames = [];
         for (let start = fromBlock; start <= currentBlock; start += batchSize) {
