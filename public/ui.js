@@ -1,45 +1,37 @@
 let uiOptions = null;
-
 let isPlayingResultVideo = false;
-
 let lastResolvedGames, lastAccount, lastResolveGame;
 
 export function initializeUI({ socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame }) {
     uiOptions = { socket, getAccount, getResolvedGames, getUserTokens, setSelectedTokenId, resolveGame };
-   
+  
     // Modal event listeners
     document.getElementById('infoButton').addEventListener('click', () => {
         console.log('Opening info modal');
         document.getElementById('infoModal').style.display = 'block';
     });
-
     document.getElementById('betButton').addEventListener('click', () => {
         console.log('Bet-A-Sketchy clicked, showing game interface');
         document.getElementById('mainMenu').classList.add('hidden');
         document.getElementById('gameInterface').classList.remove('hidden');
     });
-
     document.getElementById('selectNFTBtn').addEventListener('click', () => {
         console.log('Opening NFT selection modal');
         displayNFTsInModal(getUserTokens());
         document.getElementById('nftModal').style.display = 'block';
     });
-
     document.getElementById('resultsButton').addEventListener('click', (e) => {
         e.stopPropagation();
         console.log('Results button clicked, opening modal');
         updateResultsModal(getResolvedGames(), getAccount(), resolveGame);
         document.getElementById('resultsModal').style.display = 'block';
     });
-
     document.getElementById('infoModal').querySelector('.close').onclick = () => {
         document.getElementById('infoModal').style.display = 'none';
     };
-
     document.getElementById('nftModal').querySelector('.close').onclick = () => {
         document.getElementById('nftModal').style.display = 'none';
     };
-
     document.getElementById('resultsModal').querySelector('.close').onclick = () => {
         console.log('Closing results modal');
         const currentAccount = getAccount();
@@ -48,7 +40,6 @@ export function initializeUI({ socket, getAccount, getResolvedGames, getUserToke
         }
         document.getElementById('resultsModal').style.display = 'none';
     };
-
     window.onclick = (event) => {
         if (event.target === document.getElementById('infoModal')) {
             document.getElementById('infoModal').style.display = 'none';
